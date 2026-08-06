@@ -1,63 +1,53 @@
 /* ===================================================================
    PERSISTENT STORAGE
-   Database lokal berbasis IndexedDB — berjalan murni di browser, TIDAK
-   butuh server/API key, dan karena itu tetap berfungsi persis sama baik
-   dibuka langsung dari file, dijalankan lokal, maupun sudah di-deploy ke
-   hosting apa saja (GitHub Pages, Netlify, cPanel, dll). localStorage
-   dipakai sbg fallback kalau IndexedDB tidak tersedia (mis. mode privat
-   sangat ketat di sebagian browser lama).
-   Data tersimpan PER PERANGKAT/BROWSER (bukan otomatis sinkron ke
-   perangkat lain) -- makanya disediakan juga Export/Import JSON di tab
-   "Data & Cadangan" utk backup & pemindahan data antar perangkat.
+   Database TERPUSAT berbasis Supabase (Postgres) -- semua perangkat yang
+   membuka aplikasi ini membaca & menulis ke project Supabase yang sama,
+   jadi data & akun user otomatis sinkron lintas perangkat.
+   localStorage tetap dipakai sbg CACHE lokal: dibaca kalau sedang
+   offline/Supabase belum disetel (lihat js/config.js), dan langsung
+   diperbarui tiap kali berhasil simpan/ambil dari Supabase.
 =================================================================== */
-const IDB_NAME = 'petadonor-db';
-const IDB_STORE = 'kv';
-let idbPromise = null;
+let supabaseClient = null;
+let supabaseReady = false; // true kalau SUPABASE_URL/KEY di js/config.js sudah diisi
 
-function openIDB(){
-  if(idbPromise) return idbPromise;
-  idbPromise = new Promise((resolve, reject)=>{
-    if(!('indexedDB' in window)){ reject(new Error('IndexedDB tidak tersedia')); return; }
-    const req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = () => {
-      if(!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-  return idbPromise;
-}
-async function idbSet(key, value){
-  const db = await openIDB();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(value, key);
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-async function idbGet(key){
-  const db = await openIDB();
-  return new Promise((resolve, reject)=>{
-    const tx = db.transaction(IDB_STORE, 'readonly');
-    const req = tx.objectStore(IDB_STORE).get(key);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function getSupabaseClient(){
+  if(supabaseClient) return supabaseClient;
+  if(typeof SUPABASE_URL==='undefined' || typeof SUPABASE_ANON_KEY==='undefined') return null;
+  if(!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_URL.indexOf('ISI-DENGAN')===0) return null;
+  if(typeof supabase==='undefined') return null; // CDN supabase-js belum termuat
+  supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  supabaseReady = true;
+  return supabaseClient;
 }
 
-// Simpan: coba IndexedDB dulu, kalau gagal baru fallback ke localStorage --
-// supaya aplikasi tetap bisa menyimpan walau di lingkungan yang tidak
-// mendukung IndexedDB sama sekali.
+// Simpan: tulis ke cache lokal dulu (cepat & tetap jalan offline), lalu
+// upsert ke Supabase kalau sudah disetel & sedang online.
 async function storageSet(key, value){
-  try{ await idbSet(key, value); return; }catch(e){ /* lanjut ke fallback */ }
-  try{ localStorage.setItem('petadonor:'+key, value); }catch(e2){ console.error('Gagal menyimpan data', e2); }
-}
-async function storageGet(key){
+  try{ localStorage.setItem('petadonor:'+key, value); }catch(e){ /* abaikan, lanjut coba Supabase */ }
+  const client = getSupabaseClient();
+  if(!client) return;
   try{
-    const v = await idbGet(key);
-    if(v!=null) return v;
-  }catch(e){ /* lanjut ke fallback */ }
+    const { error } = await client.from('app_kv').upsert({ id:key, value: JSON.parse(value), updated_at: new Date().toISOString() });
+    if(error) throw error;
+  }catch(e){ console.error('Gagal sinkron ke Supabase (tersimpan di cache lokal saja utk saat ini):', e); }
+}
+// Ambil: kalau Supabase disetel & bisa dihubungi, itu sumber data utama
+// (paling baru dari perangkat manapun). Kalau gagal/offline, pakai cache
+// lokal supaya aplikasi tetap bisa dibuka.
+async function storageGet(key){
+  const client = getSupabaseClient();
+  if(client){
+    try{
+      const { data, error } = await client.from('app_kv').select('value').eq('id', key).maybeSingle();
+      if(error) throw error;
+      if(data && data.value!=null){
+        const json = JSON.stringify(data.value);
+        try{ localStorage.setItem('petadonor:'+key, json); }catch(e){ /* abaikan */ }
+        return json;
+      }
+      if(data==null) return null; // key belum pernah dibuat di Supabase -- bukan error
+    }catch(e){ console.error('Gagal ambil dari Supabase, pakai cache lokal:', e); }
+  }
   try{ return localStorage.getItem('petadonor:'+key); }catch(e2){ return null; }
 }
 
@@ -141,7 +131,9 @@ function updateStorageStatus(){
   const el = document.getElementById('storageStatus');
   if(!el) return;
   const now = new Date();
-  el.textContent = `Tersimpan otomatis di database lokal perangkat ini — pembaruan terakhir ${now.toLocaleTimeString('id-ID')}.`;
+  el.textContent = supabaseReady
+    ? `Tersimpan otomatis di database terpusat (Supabase) — pembaruan terakhir ${now.toLocaleTimeString('id-ID')}.`
+    : `Supabase belum disetel (lihat js/config.js) — tersimpan sementara di cache lokal perangkat ini saja, pembaruan terakhir ${now.toLocaleTimeString('id-ID')}.`;
 }
 
 /* ---------- Export / Import (cadangan & pindah data antar perangkat) ---------- */

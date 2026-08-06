@@ -1,8 +1,8 @@
-const CACHE_NAME = 'petadonor-cache-v10';
+const CACHE_NAME = 'petadonor-cache-v11';
 const ASSETS = [
   './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   './css/styles.css',
-  './js/state.js', './js/storage.js', './js/map.js', './js/geocoding.js',
+  './js/config.js', './js/state.js', './js/storage.js', './js/map.js', './js/geocoding.js',
   './js/search.js', './js/overpass.js', './js/helpers.js', './js/combo-select.js',
   './js/auth.js', './js/tabs.js',
   './js/topbar.js', './js/setting.js', './js/master-data.js', './js/kegiatan.js',
@@ -26,8 +26,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   // Network-first for map tiles & geocoding (perlu data terbaru), cache-first untuk shell app
   const url = e.request.url;
-  if (url.includes('tile.openstreetmap.org') || url.includes('nominatim.openstreetmap.org') || url.includes('overpass-api.de')) {
-    return; // biarkan browser menangani langsung (butuh online)
+  if (url.includes('tile.openstreetmap.org') || url.includes('nominatim.openstreetmap.org') || url.includes('overpass-api.de') || url.includes('.supabase.co')) {
+    return; // biarkan browser menangani langsung (butuh online; data terpusat Supabase harus selalu live, bukan dari cache)
   }
   e.respondWith(
     caches.match(e.request).then((cached) => cached || fetch(e.request).catch(() => cached))

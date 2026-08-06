@@ -782,8 +782,10 @@
   bukan ditumpuk dalam satu file. Urutan pemanggilan di bawah ini PENTING
   (mengikuti urutan ketergantungan antar bagian):
 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script> <!-- klien Supabase -->
+<script src="js/config.js"></script>      <!-- isi SUPABASE_URL & SUPABASE_ANON_KEY di sini -->
 <script src="js/state.js"></script>       <!-- state global, kategori pencarian -->
-<script src="js/storage.js"></script>     <!-- IndexedDB / localStorage: simpan & backup data -->
+<script src="js/storage.js"></script>     <!-- Supabase (terpusat) + localStorage sbg cache/fallback -->
 <script src="js/map.js"></script>         <!-- inisialisasi peta Leaflet & marker -->
 <script src="js/geocoding.js"></script>   <!-- ambil koordinat dari nama tempat (Nominatim) -->
 <script src="js/search.js"></script>      <!-- kotak pencarian lokasi di atas peta -->
