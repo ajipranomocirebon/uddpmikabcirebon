@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>PetaDonor — Pemetaan &amp; Surveilans Donor Darah Ciayumajakuning</title>
+
+<!-- PWA / mobile home-screen support -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#9C1B2E" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="PetaDonor" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<link rel="icon" href="icon-192.png" />
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Stylesheet aplikasi (dipisah dari HTML, lihat css/styles.css) -->
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+<!-- ============ LAYAR LOGIN / REGISTRASI ============
+     Menimpa seluruh tampilan aplikasi setiap kali program ini aktif/mulai
+     dibuka (lihat js/auth.js) -- baru hilang setelah login berhasil sebagai
+     Administrator, User 1, atau User 2. Belum punya akun? Ada pilihan
+     Registrasi (ID User terisi otomatis/tersembunyi, Nama Lengkap, Password
+     + Ulangi Password harus sama) yang tersimpan sbg data pada Tab 6.
+     Administrator (Tab 6) -- lihat panel-administrator di bawah. -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <div class="auth-brand">
+      <div class="brand-mark"></div>
+      <div>
+        <h1>PetaDonor <span>Ciayumajakuning</span></h1>
+        <p>Silakan masuk untuk melanjutkan</p>
+      </div>
+    </div>
+    <div class="toast" id="authToast"></div>
+
+    <form id="formLogin" class="auth-form">
+      <h3>Masuk</h3>
+      <label>Username <span class="req">*</span></label>
+      <input type="text" id="loginUsername" autocomplete="username" required autofocus />
+      <label>Password <span class="req">*</span></label>
+      <input type="password" id="loginPassword" autocomplete="current-password" required />
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary auth-submit">Masuk</button>
+      </div>
+      <p class="auth-switch">Belum punya akun? <button type="button" class="link-btn" id="btnShowRegister">Daftar di sini</button></p>
+    </form>
+
+    <form id="formRegister" class="auth-form" style="display:none;">
+      <h3>Daftar Akun Baru</h3>
+      <!-- ID User: auto-increment, primary key -- terisi otomatis & tersembunyi -->
+      <input type="hidden" id="registerId" />
+
+      <label>Nama Lengkap <span class="req">*</span></label>
+      <input type="text" id="registerNama" required pattern="[A-Za-z0-9\s]*"
+             title="Hanya huruf, angka, dan spasi yang diperbolehkan" autocomplete="off" />
+
+      <label>Username <span class="req">*</span></label>
+      <input type="text" id="registerUsername" required pattern="[A-Za-z0-9_.]*"
+             title="Hanya huruf, angka, titik, dan underscore (tanpa spasi)" autocomplete="off" />
+
+      <label>Password <span class="req">*</span></label>
+      <input type="password" id="registerPassword" required autocomplete="new-password" />
+
+      <label>Ulangi Password <span class="req">*</span></label>
+      <input type="password" id="registerPassword2" required autocomplete="new-password" />
+      <p class="field-note">Password dan Ulangi Password harus sama persis.</p>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary auth-submit">Daftar</button>
+      </div>
+      <p class="auth-switch">Sudah punya akun? <button type="button" class="link-btn" id="btnShowLogin">Masuk di sini</button></p>
+    </form>
+  </div>
+</div>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div>
+        <h1>PetaDonor <span>Ciayumajakuning</span></h1>
+        <p>Pemetaan lokasi donor darah &amp; surveilans epidemiologi wilayah Cirebon Raya</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-stats" id="topbarStats"></div>
+      <div class="topbar-user" id="topbarUser"></div>
+    </div>
+  </header>
+
+  <section class="map-wrap">
+    <div id="map"></div>
+    <div class="map-search">
+      <div class="map-search-bar">
+        <input type="text" id="mapSearchInput" placeholder="Cari desa, kecamatan, RS/puskesmas, sekolah, perusahaan, UMKM…" autocomplete="off" />
+        <button type="button" id="mapSearchBtn" title="Cari">🔍</button>
+      </div>
+      <div class="map-search-filters" id="mapSearchFilters">
+        <button type="button" class="filter-chip active" data-cat="semua">Semua</button>
+        <button type="button" class="filter-chip" data-cat="perusahaan">Perusahaan/Industri</button>
+        <button type="button" class="filter-chip" data-cat="desa">Desa/Kel</button>
+        <button type="button" class="filter-chip" data-cat="wilayah">Kecamatan</button>
+        <button type="button" class="filter-chip" data-cat="kesehatan">Kesehatan</button>
+        <button type="button" class="filter-chip" data-cat="pendidikan">Pendidikan</button>
+        <button type="button" class="filter-chip" data-cat="umkm">UMKM</button>
+        <button type="button" class="filter-chip" data-cat="organisasi">Organisasi</button>
+      </div>
+      <button type="button" class="filter-chip" id="btnBrowseCategory">🌐 Jelajahi kategori ini di area peta yang tampil</button>
+      <div class="map-search-results" id="mapSearchResults"></div>
+    </div>
+    <button type="button" class="legend-toggle" id="btnLegendToggle">🗺️ Legenda</button>
+    <div class="map-layers" id="mapLayers">
+      <button type="button" class="layer-btn active" data-layer="default">Default</button>
+      <button type="button" class="layer-btn" data-layer="satelit">Satelit</button>
+      <button type="button" class="layer-btn" data-layer="medan">Medan</button>
+    </div>
+    <div class="legend" id="legendPanel">
+      <span class="legend-title">Status Zona Lokasi</span>
+      <div id="legendZonaItems"></div>
+      <div class="legend-item"><i class="dot netral"></i> Belum ada data kegiatan</div>
+    </div>
+  </section>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="master">
+      <span class="tab-ico">📍</span>
+      <span class="full">1. Master Data</span>
+      <span class="short">Master Data</span>
+    </button>
+    <button class="tab-btn" data-tab="kegiatan">
+      <span class="tab-ico">🩸</span>
+      <span class="full">2. Input Kegiatan &amp; Epidemiologi</span>
+      <span class="short">Kegiatan</span>
+    </button>
+    <button class="tab-btn" data-tab="laporan">
+      <span class="tab-ico">📊</span>
+      <span class="full">3. Laporan Epidemiologi</span>
+      <span class="short">Laporan</span>
+    </button>
+    <button class="tab-btn" data-tab="data">
+      <span class="tab-ico">💾</span>
+      <span class="full">4. Data &amp; Cadangan</span>
+      <span class="short">Data</span>
+    </button>
+    <button class="tab-btn" data-tab="setting">
+      <span class="tab-ico">⚙️</span>
+      <span class="full">5. Setting</span>
+      <span class="short">Setting</span>
+    </button>
+    <button class="tab-btn" data-tab="administrator">
+      <span class="tab-ico">🔐</span>
+      <span class="full">6. Administrator</span>
+      <span class="short">Admin</span>
+    </button>
+  </nav>
+
+  <!-- ============ TAB 1 : MASTER DATA ============ -->
+  <main class="tab-panels">
+  <section class="panel active" id="panel-master">
+    <div class="grid2">
+      <div class="card">
+        <h3 id="masterFormTitle">Tambah Lokasi Baru</h3>
+        <p class="hint">Titik koordinat terisi otomatis begitu Nama Tempat, Kecamatan, dan Wilayah lengkap.</p>
+        <div class="toast" id="masterToast"></div>
+
+        <form id="formMaster">
+          <input type="hidden" id="masterId" />
+
+          <label>Nama Tempat <span class="req">*</span></label>
+          <div class="field-autocomplete">
+            <input type="text" id="masterNama" placeholder="cth. Balai Desa Sindanglaut" required
+                   pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                   autocomplete="off" />
+            <div class="autocomplete-list" id="masterNamaSuggest"></div>
+          </div>
+          <p class="field-note">Hanya huruf, angka, dan spasi. Sedang mengetik? Sistem akan menampilkan lokasi yang sudah terdaftar dengan nama serupa, supaya tidak terinput dua kali.</p>
+
+          <label>Alamat Lengkap <span class="opt">(opsional)</span></label>
+          <textarea id="masterAlamat" placeholder="Jl RT RW Desa (huruf angka spasi saja)"></textarea>
+          <p class="field-note">Hanya huruf, angka, dan spasi (tanpa tanda baca seperti . , / -).</p>
+
+          <label>Kecamatan <span class="req">*</span></label>
+          <select id="masterKecamatan" required>
+            <option value="">— pilih kecamatan —</option>
+          </select>
+          <p class="field-note">Daftar kecamatan diatur lewat tab <b>⚙️ Setting → Input Data Kecamatan</b>. Ketik untuk mencari, atau klik untuk melihat semua pilihan. Memilih kecamatan akan mengisi Wilayah &amp; Zona Wilayah secara otomatis.</p>
+
+          <label>Wilayah <span class="req">*</span></label>
+          <select id="masterWilayah" required>
+            <option value="">— pilih wilayah —</option>
+          </select>
+
+          <label>Zona Wilayah <span class="req">*</span></label>
+          <select id="masterZonaWilayah" required>
+            <option value="">— pilih zona wilayah —</option>
+          </select>
+          <p class="field-note">Daftar zona wilayah diatur lewat tab <b>⚙️ Setting → Input Data Kecamatan</b>. Memilih kecamatan akan mengisi Zona Wilayah secara otomatis.</p>
+
+          <div class="row2">
+            <div>
+              <label>Longitude</label>
+              <input type="text" id="masterLng" class="mono" placeholder="cth. 108.123456"
+                     inputmode="decimal" pattern="-?[0-9]*\.?[0-9]*" title="Angka desimal, boleh negatif (mis. 108.123456)" />
+            </div>
+            <div>
+              <label>Latitude</label>
+              <input type="text" id="masterLat" class="mono" placeholder="cth. -6.123456"
+                     inputmode="decimal" pattern="-?[0-9]*\.?[0-9]*" title="Angka desimal, boleh negatif (mis. -6.123456)" />
+            </div>
+          </div>
+          <p class="field-note" id="geoStatus">Menunggu Nama Tempat, Kecamatan &amp; Wilayah diisi…</p>
+          <button type="button" class="btn btn-line" id="btnManualPin" style="margin-top:6px;">📍 Tandai manual di peta</button>
+          <p class="field-note">Koordinat terisi otomatis, bisa juga ditandai manual di peta lewat tombol di atas, atau diketik langsung di kolom Longitude/Latitude (boleh isi salah satu dulu, peta akan mengikuti begitu keduanya lengkap).</p>
+
+          <label>Nama PIC <span class="opt">(opsional)</span></label>
+          <input type="text" id="masterPic" placeholder="Nama penanggung jawab lokasi"
+                 pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan" />
+          <p class="field-note">Hanya huruf, angka, dan spasi.</p>
+
+          <label>Contact Person PIC <span class="opt">(opsional)</span></label>
+          <input type="tel" id="masterKontak" placeholder="08xxxxxxxxxx"
+                 inputmode="numeric" pattern="[0-9]*" maxlength="20"
+                 title="Hanya angka 0-9 yang diperbolehkan" />
+          <p class="field-note">Hanya angka 0–9.</p>
+
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <button type="button" class="btn btn-ghost" id="btnBatalMaster">Batal</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Daftar Lokasi Terdaftar</h3>
+        <p class="hint">Klik Edit untuk mengubah data, atau Hapus untuk menghapus lokasi.</p>
+
+        <div class="table-search">
+          <span class="table-search-ico">🔍</span>
+          <input type="text" id="masterTableSearch" placeholder="Cari nama tempat, alamat, kecamatan, wilayah, atau PIC…" autocomplete="off" />
+          <button type="button" class="table-search-clear" id="btnMasterTableSearchClear" title="Bersihkan pencarian">✕</button>
+        </div>
+
+        <div class="table-wrap table-wrap-flat">
+          <table>
+            <thead><tr>
+              <th>ID</th><th>Nama Tempat</th><th>Alamat Lengkap</th><th>Wilayah</th><th>Kecamatan</th><th>PIC</th><th></th>
+            </tr></thead>
+            <tbody id="tblMaster"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" id="masterPagination">
+          <span class="pagination-label" id="masterTableMeta"></span>
+          <div class="pagination-nav">
+            <button type="button" class="page-nav-btn" id="btnMasterPrev">‹ Prev</button>
+            <button type="button" class="page-nav-btn" id="btnMasterNext">Next ›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 2 : KEGIATAN & EPIDEMIOLOGI ============ -->
+  <section class="panel" id="panel-kegiatan">
+    <div class="grid2">
+      <div class="card">
+        <h3 id="kegiatanFormTitle">Input Kegiatan Donor</h3>
+        <p class="hint">Cari lokasi dari Master Data, lalu lengkapi data perolehan &amp; epidemiologi.</p>
+        <div class="toast" id="kegiatanToast"></div>
+
+        <form id="formKegiatan">
+          <input type="hidden" id="kegiatanId" />
+          <input type="hidden" id="kegiatanTempatId" />
+
+          <label>Cari Nama Tempat <span class="req">*</span></label>
+          <input type="text" id="kegiatanCari" list="daftarTempat" placeholder="Ketik nama lokasi terdaftar…" autocomplete="off" required />
+          <datalist id="daftarTempat"></datalist>
+          <div class="place-card" id="placeCard" style="display:none;"></div>
+
+          <label>Tanggal Kegiatan <span class="req">*</span></label>
+          <input type="date" id="kegiatanTanggal" required />
+
+          <label>Jumlah Perolehan per Golongan Darah <span class="req">*</span></label>
+          <div class="gol-grid">
+            <div class="gol-box"><span>A</span><input type="number" min="0" value="0" id="golA" required /></div>
+            <div class="gol-box"><span>B</span><input type="number" min="0" value="0" id="golB" required /></div>
+            <div class="gol-box"><span>AB</span><input type="number" min="0" value="0" id="golAB" required /></div>
+            <div class="gol-box"><span>O</span><input type="number" min="0" value="0" id="golO" required /></div>
+          </div>
+          <div class="total-line">
+            <span>Sub Total Perolehan Pengambilan</span>
+            <b id="golTotal">0</b>
+          </div>
+          <p class="field-note">Wajib diisi untuk tiap golongan darah (A/B/AB/O) — isi dengan angka 0 kalau memang tidak ada pendonor golongan tersebut pada kegiatan ini.</p>
+
+          <label>Gagal Pengambilan <span class="opt">(opsional)</span></label>
+          <div class="gol-grid">
+            <div class="gol-box"><span>A</span><input type="number" min="0" value="0" id="gagalA" /></div>
+            <div class="gol-box"><span>B</span><input type="number" min="0" value="0" id="gagalB" /></div>
+            <div class="gol-box"><span>AB</span><input type="number" min="0" value="0" id="gagalAB" /></div>
+            <div class="gol-box"><span>O</span><input type="number" min="0" value="0" id="gagalO" /></div>
+          </div>
+          <div class="total-line">
+            <span>Sub Total Gagal Pengambilan</span>
+            <b id="gagalTotal">0</b>
+          </div>
+          <p class="field-note">Opsional — boleh dikosongkan/0 kalau tidak ada pengambilan yang gagal pada kegiatan ini.</p>
+
+          <div class="total-line grand">
+            <span>Total Pengambilan</span>
+            <b id="pengambilanTotal">0</b>
+          </div>
+          <p class="field-note">Total Pengambilan = Sub Total Perolehan Pengambilan + Sub Total Gagal Pengambilan.</p>
+
+          <div class="epi-head">
+            <label style="margin:0;">Epidemiologi (skrining reaktif) <span class="opt">(opsional)</span></label>
+            <button type="button" class="btn btn-line btn-sm" id="btnTambahEpi">+ Tambah Nomor Kantong</button>
+          </div>
+          <p class="hint" style="margin:4px 0 0;">Epidemiologi (skrining reaktif) merupakan bagian dari <b>Sub Total Perolehan Pengambilan</b> di atas — bukan penjumlahan tambahan — karena skrining reaktif dilakukan terhadap nomor kantong yang secara hasil uji lab dinyatakan reaktif dari data perolehan yang sudah diinput. Boleh dikosongkan kalau tidak ada hasil reaktif pada kegiatan ini. Satu nomor kantong bisa reaktif pada lebih dari satu parameter sekaligus — tambahkan nomor kantongnya dulu, lalu gunakan "+ Tambah Parameter" di dalamnya untuk memilih parameter mana saja yang reaktif (daftar pilihan parameter diatur lewat tab <b>⚙️ Setting → Input Parameter</b>).</p>
+          <div id="epiList"></div>
+          <p class="epi-empty" id="epiEmptyMsg">Belum ada nomor kantong reaktif ditambahkan.</p>
+
+          <label>Zona <span class="req">*</span></label>
+          <select id="kegiatanZona" required>
+            <option value="">— pilih zona —</option>
+          </select>
+          <p class="field-note">Kalau Epidemiologi (skrining reaktif) di atas dikosongkan, Zona otomatis terisi <b>"Aman"</b> dan terkunci. Begitu ada Nomor Kantong ditambahkan, Zona wajib dipilih manual. Daftar zona diatur lewat tab <b>⚙️ Setting → Input Zona</b>.</p>
+
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <button type="button" class="btn btn-ghost" id="btnBatalKegiatan">Batal</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Riwayat Kegiatan</h3>
+        <p class="hint">Data terbaru menentukan warna zona pada peta untuk masing-masing lokasi. Klik ikon "🔍 Detail" pada kolom paling kanan untuk melihat rincian Jumlah Perolehan per Golongan Darah, Gagal Pengambilan, dan Epidemiologi (skrining reaktif) per nomor kantong. Pencarian nama tempat &amp; periode tanggal bisa dipakai sendiri-sendiri atau digabung — kosongkan kotak pencarian untuk melihat seluruh riwayat pada periode yang dipilih, atau kosongkan periode untuk melihat seluruh riwayat dari nama tempat yang dicari.</p>
+
+        <div class="table-search-row">
+          <div class="table-search">
+            <span class="table-search-ico">🔍</span>
+            <input type="text" id="kegiatanTableSearch" placeholder="Cari nama tempat…" autocomplete="off" />
+            <button type="button" class="table-search-clear" id="btnKegiatanTableSearchClear" title="Bersihkan pencarian">✕</button>
+          </div>
+          <div class="table-date-filter table-date-range">
+            <input type="date" id="kegiatanTableDateFrom" title="Dari tanggal kegiatan" />
+            <span class="table-date-range-sep">–</span>
+            <input type="date" id="kegiatanTableDateTo" title="Sampai tanggal kegiatan" />
+            <button type="button" class="table-search-clear" id="btnKegiatanTableDateClear" title="Bersihkan filter periode">✕</button>
+          </div>
+        </div>
+
+        <div class="table-wrap table-wrap-flat">
+          <table>
+            <thead><tr>
+              <th>Tanggal</th><th>Tempat</th><th>Berhasil</th><th>Gagal Pengambilan</th><th>Jumlah Keseluruhan</th><th>Reaktif</th><th>Zona</th><th></th>
+            </tr></thead>
+            <tbody id="tblKegiatan"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" id="kegiatanPagination">
+          <span class="pagination-label" id="kegiatanTableMeta"></span>
+          <div class="pagination-nav">
+            <button type="button" class="page-nav-btn" id="btnKegiatanPrev">‹ Prev</button>
+            <button type="button" class="page-nav-btn" id="btnKegiatanNext">Next ›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 3 : LAPORAN ============ -->
+  <section class="panel" id="panel-laporan">
+    <div class="card">
+      <h3>Laporan Epidemiologi Berdasarkan Periode</h3>
+      <p class="hint">Pilih rentang tanggal kegiatan untuk melihat rekap hasil skrining epidemiologi.</p>
+      <div class="filter-bar">
+        <div class="filter-field">
+          <label>Dari Tanggal</label>
+          <input type="date" id="filterDari" />
+        </div>
+        <div class="filter-field">
+          <label>Sampai Tanggal</label>
+          <input type="date" id="filterSampai" />
+        </div>
+        <div class="filter-field">
+          <label>Wilayah</label>
+          <select id="filterWilayah">
+            <option value="">Semua Wilayah</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label>Jenis Zona</label>
+          <select id="filterZona">
+            <option value="">Semua</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" id="btnTampilkanLaporan" style="height:37px;">Tampilkan Laporan</button>
+        <button type="button" class="btn btn-line" id="btnResetPetaLaporan" style="height:37px;">🔄 Tampilkan Semua Lokasi di Peta</button>
+        <button type="button" class="btn btn-line" id="btnScreenshotLaporan" style="height:37px;">📸 Screenshot Peta &amp; Laporan</button>
+      </div>
+      <p class="hint" id="laporanMapInfo"></p>
+
+      <div id="laporanReportCard">
+        <p class="report-card-title" id="laporanReportTitle"></p>
+        <div class="summary-grid" id="summaryGrid"></div>
+
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Tanggal</th><th>Tempat</th><th>Wilayah</th><th>No. Kantong</th><th>Parameter Reaktif</th><th>Zona</th>
+            </tr></thead>
+            <tbody id="tblLaporan"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="toast" id="laporanToast"></div>
+    </div>
+  </section>
+
+  <!-- ============ TAB 4 : DATA & CADANGAN ============ -->
+  <section class="panel" id="panel-data">
+    <div class="card" style="padding:20px; margin-bottom:16px;">
+      <h3 style="margin-top:0;">Status Penyimpanan</h3>
+      <p class="setting-hint" id="storageStatus">Memeriksa status penyimpanan…</p>
+      <p class="setting-hint">Semua data (Master Data &amp; Kegiatan) tersimpan otomatis di
+        <b>database lokal browser ini (IndexedDB)</b> setiap kali Anda menyimpan sesuatu — tidak
+        perlu koneksi internet, dan tetap berfungsi persis sama walau aplikasi ini sudah
+        di-deploy/host di website apa pun (GitHub Pages, Netlify, cPanel, dsb). Data hanya
+        tersimpan di <b>perangkat/browser ini saja</b> -- kalau Anda buka aplikasi ini dari HP
+        atau komputer lain, datanya belum ikut muncul di sana kecuali dipindahkan manual lewat
+        Export/Import di bawah ini.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card" style="padding:20px;">
+        <h3 style="margin-top:0;">⬇️ Unduh Cadangan</h3>
+        <p class="setting-hint">Simpan seluruh data (Master Data + Kegiatan) sebagai satu file
+          <span class="mono">.json</span> -- untuk backup rutin atau untuk dipindahkan ke
+          perangkat lain.</p>
+        <button class="btn btn-primary" id="btnExportBackup" type="button">Unduh Cadangan (.json)</button>
+      </div>
+      <div class="card" style="padding:20px;">
+        <h3 style="margin-top:0;">⬆️ Pulihkan dari Cadangan</h3>
+        <p class="setting-hint">Pilih file cadangan <span class="mono">.json</span> yang pernah
+          diunduh. <b>Gabung</b> menambahkan data baru tanpa menghapus yang sudah ada;
+          <b>Ganti</b> menimpa total data di perangkat ini dengan isi file.</p>
+        <input type="file" id="inputImportFile" accept="application/json" style="margin-bottom:10px; display:block;" />
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-ghost" id="btnImportMerge" type="button">Gabung dengan data saat ini</button>
+          <button class="btn btn-primary" id="btnImportReplace" type="button">Ganti semua data</button>
+        </div>
+      </div>
+    </div>
+    <div class="toast" id="backupToast"></div>
+  </section>
+
+  <!-- ============ TAB 5 : SETTING ============ -->
+  <section class="panel" id="panel-setting">
+
+    <!-- Panel/folder "Input Data Kecamatan" -- diklik untuk buka/tutup.
+         Pembungkus ini murni pengelompokan tampilan; form & tabel di
+         dalamnya berjalan persis seperti sebelumnya (ID, logika, dan
+         alur data tidak berubah). Sub-panel Setting lainnya nanti bisa
+         ditambahkan dengan pola ".settings-group" yang sama. -->
+    <div class="settings-group" data-group="kecamatan">
+      <button type="button" class="settings-group-header" onclick="toggleSettingsGroup(this)">
+        <span class="settings-group-icon">🗺️</span>
+        <span class="settings-group-title">Input Data Kecamatan</span>
+        <span class="settings-group-desc">Kecamatan, Wilayah &amp; Zona Wilayah untuk dropdown Master Data</span>
+        <span class="settings-group-chevron">▾</span>
+      </button>
+      <div class="settings-group-body">
+        <div class="grid2">
+          <div class="card">
+            <h3 id="kecamatanFormTitle">Input Data Kecamatan</h3>
+            <p class="hint">Data kecamatan, wilayah &amp; zona wilayah yang diinput di sini akan otomatis muncul sebagai pilihan dropdown Kecamatan, Wilayah, dan Zona Wilayah pada tab 1. Master Data.</p>
+            <div class="toast" id="settingToast"></div>
+
+            <form id="formKecamatan">
+              <!-- ID Kecamatan: auto-increment, terisi otomatis & tersembunyi (tidak perlu diisi admin) -->
+              <input type="hidden" id="kecamatanId" />
+
+              <label>Kecamatan <span class="req">*</span></label>
+              <input type="text" id="settingKecamatanNama" placeholder="cth. Lemahabang" required
+                     pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                     autocomplete="off" />
+              <p class="field-note">Hanya huruf, angka, dan spasi.</p>
+
+              <label>Wilayah <span class="req">*</span></label>
+              <input type="text" id="settingKecamatanWilayah" placeholder="cth. Kabupaten Cirebon" required
+                     pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                     autocomplete="off" />
+              <p class="field-note">Hanya huruf, angka, dan spasi. Nama wilayah yang sama akan otomatis dikelompokkan menjadi satu pilihan pada dropdown Wilayah.</p>
+
+              <label>Zona Wilayah <span class="req">*</span></label>
+              <input type="text" id="settingKecamatanZona" placeholder="cth. Zona 1" required
+                     pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                     autocomplete="off" />
+              <p class="field-note">Hanya huruf, angka, dan spasi. Nama zona wilayah yang sama akan otomatis dikelompokkan menjadi satu pilihan pada dropdown Zona Wilayah.</p>
+
+              <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Simpan</button>
+                <button type="button" class="btn btn-ghost" id="btnBatalKecamatan">Batal</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <h3>Daftar Kecamatan Terdaftar</h3>
+            <p class="hint">Klik Edit untuk mengubah data, atau Hapus untuk menghapus kecamatan.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>ID</th><th>Kecamatan</th><th>Wilayah</th><th>Zona Wilayah</th><th></th>
+                </tr></thead>
+                <tbody id="tblKecamatan"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel/folder "Input Parameter" -- sama pola dengan panel "Input
+         Data Kecamatan" di atas. Data yang diinput di sini menjadi sumber
+         pilihan "Parameter Reaktif" pada Tab 2 (Input Kegiatan &
+         Epidemiologi) bagian Epidemiologi (skrining reaktif): tambahkan
+         nomor kantong dulu, lalu tombol "+ Tambah Parameter" di dalamnya
+         akan menampilkan pilihan dari daftar Parameter di sini. -->
+    <div class="settings-group" data-group="parameter">
+      <button type="button" class="settings-group-header" onclick="toggleSettingsGroup(this)">
+        <span class="settings-group-icon">🧪</span>
+        <span class="settings-group-title">Input Parameter</span>
+        <span class="settings-group-desc">Parameter skrining reaktif (HBsAg, HIV, HCV, Sifilis, dst) untuk Tab 2</span>
+        <span class="settings-group-chevron">▾</span>
+      </button>
+      <div class="settings-group-body">
+        <div class="grid2">
+          <div class="card">
+            <h3 id="parameterFormTitle">Input Parameter</h3>
+            <p class="hint">Data parameter yang diinput di sini akan otomatis muncul sebagai pilihan pada tombol "+ Tambah Parameter" di bagian Epidemiologi (skrining reaktif), Tab 2. Input Kegiatan &amp; Epidemiologi.</p>
+            <div class="toast" id="parameterToast"></div>
+
+            <form id="formParameter">
+              <!-- ID Parameter: auto-increment, terisi otomatis & tersembunyi (tidak perlu diisi admin) -->
+              <input type="hidden" id="parameterId" />
+
+              <label>Nama Parameter <span class="req">*</span></label>
+              <input type="text" id="settingParameterNama" placeholder="cth. HBsAg" required
+                     pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                     autocomplete="off" />
+              <p class="field-note">Hanya huruf, angka, dan spasi. cth. HBsAg, HIV, HCV, Sifilis.</p>
+
+              <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Simpan</button>
+                <button type="button" class="btn btn-ghost" id="btnBatalParameter">Batal</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <h3>Daftar Parameter Terdaftar</h3>
+            <p class="hint">Klik Edit untuk mengubah data, atau Hapus untuk menghapus parameter.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>ID</th><th>Nama Parameter</th><th></th>
+                </tr></thead>
+                <tbody id="tblParameter"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel/folder "Input Zona" -- sama pola dgn panel "Input Data
+         Kecamatan" & "Input Parameter" di atas. Data yang diinput di sini
+         menjadi sumber pilihan dropdown "Zona" pada Tab 2 (Input Kegiatan
+         & Epidemiologi) serta filter "Jenis Zona" pada Tab 3 (Laporan) --
+         warnanya jg dipakai utk mewarnai pin peta, badge Zona/Reaktif pada
+         tabel, dan Legenda peta, supaya SATU sumber data warna dipakai
+         konsisten di semua tempat. Sebelumnya daftar zona (Hijau/Kuning/
+         Merah) tetap (hardcode) dgn warna tetap -- sekarang admin bebas
+         menambah/mengubah/menghapus zona & warnanya sendiri, sehingga ke
+         depannya kalau perlu menambah zona baru dgn warna berbeda cukup
+         lewat panel ini saja, tanpa mengubah kode aplikasi. -->
+    <div class="settings-group" data-group="zona">
+      <button type="button" class="settings-group-header" onclick="toggleSettingsGroup(this)">
+        <span class="settings-group-icon">🚦</span>
+        <span class="settings-group-title">Input Zona</span>
+        <span class="settings-group-desc">Zona (nama &amp; warna) untuk dropdown Zona di Tab 2, filter di Tab 3, dan warna pin peta</span>
+        <span class="settings-group-chevron">▾</span>
+      </button>
+      <div class="settings-group-body">
+        <div class="grid2">
+          <div class="card">
+            <h3 id="zonaFormTitle">Input Zona</h3>
+            <p class="hint">Data zona yang diinput di sini akan otomatis muncul sebagai pilihan dropdown "Zona" pada Tab 2. Input Kegiatan &amp; Epidemiologi, filter "Jenis Zona" pada Tab 3. Laporan, serta menentukan warna pin lokasi terkait di peta &amp; Legenda.</p>
+            <div class="toast" id="zonaToast"></div>
+
+            <form id="formZona">
+              <!-- ID Zona: auto-increment, terisi otomatis & tersembunyi (tidak perlu diisi admin) -->
+              <input type="hidden" id="zonaId" />
+
+              <label>Zona <span class="req">*</span></label>
+              <input type="text" id="settingZonaNama" placeholder="cth. Hijau" required
+                     pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                     autocomplete="off" />
+              <p class="field-note">Hanya huruf, angka, dan spasi. cth. Hijau, Kuning, Merah, atau nama zona baru lainnya.</p>
+
+              <label>Warna Zona <span class="req">*</span></label>
+              <input type="hidden" id="settingZonaWarna" required />
+              <div class="zona-color-current" id="zonaColorCurrent">
+                <span class="zona-color-current-swatch" id="zonaColorCurrentSwatch"></span>
+                <span id="zonaColorCurrentLabel">Belum dipilih</span>
+              </div>
+              <div class="zona-color-grid" id="zonaColorGrid"></div>
+              <p class="field-note">Pilih salah satu warna di atas untuk membedakan zona ini secara visual di peta, badge, dan legenda.</p>
+
+              <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Simpan</button>
+                <button type="button" class="btn btn-ghost" id="btnBatalZona">Batal</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <h3>Daftar Zona Terdaftar</h3>
+            <p class="hint">Klik Edit untuk mengubah data, atau Hapus untuk menghapus zona.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>ID</th><th>Zona</th><th>Warna</th><th></th>
+                </tr></thead>
+                <tbody id="tblZona"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ============ TAB 6 : ADMINISTRATOR ============ -->
+  <section class="panel" id="panel-administrator">
+    <div class="grid2">
+      <div class="card">
+        <h3 id="userFormTitle">Tambah User</h3>
+        <p class="hint">Kelola akun User 1 &amp; User 2 yang bisa login ke aplikasi ini. Level Akses menentukan tab mana saja yang bisa dibuka user tsb (lihat keterangan pada dropdown Level Akses). Akun baru juga otomatis muncul di sini begitu ada yang mendaftar sendiri lewat layar login (dengan Level Akses awal "User 2").</p>
+        <div class="toast" id="userToast"></div>
+
+        <form id="formUser">
+          <!-- ID User: auto-increment, primary key -- terisi otomatis & tersembunyi -->
+          <input type="hidden" id="userId" />
+
+          <label>Nama Lengkap <span class="req">*</span></label>
+          <input type="text" id="userNama" placeholder="cth. Aji Pranomo" required
+                 pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                 autocomplete="off" />
+
+          <label>Username <span class="req">*</span></label>
+          <input type="text" id="userUsername" placeholder="cth. budi123" required
+                 pattern="[A-Za-z0-9_.]*" title="Hanya huruf, angka, titik, dan underscore (tanpa spasi)"
+                 autocomplete="off" />
+          <p class="field-note">Hanya huruf, angka, titik, dan underscore (tanpa spasi). Username "ajipranomo" dicadangkan khusus untuk Administrator.</p>
+
+          <label>Password <span class="req">*</span></label>
+          <input type="password" id="userPassword" autocomplete="new-password" required />
+          <p class="field-note">Saat mengubah data user yang sudah ada, boleh dikosongkan kalau tidak ingin mengganti password lamanya.</p>
+
+          <label>Level Akses <span class="req">*</span></label>
+          <select id="userLevel" required>
+            <option value="user1">User 1 — Master Data, Input Kegiatan &amp; Epidemiologi, Laporan Epidemiologi + peta</option>
+            <option value="user2">User 2 — hanya Laporan Epidemiologi + peta</option>
+          </select>
+          <p class="field-note">User 1: Tab 1, Tab 2, Tab 3 &amp; peta bisa diakses; Tab 4, Tab 5, Tab 6 terkunci. User 2: hanya Tab 3 &amp; peta yang bisa diakses, tab lainnya terkunci.</p>
+
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <button type="button" class="btn btn-ghost" id="btnBatalUser">Batal</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h3>Data User</h3>
+        <p class="hint">Klik Edit untuk mengubah data/Level Akses, atau Hapus untuk menghapus user. Akun Administrator (ajipranomo) bersifat tetap &amp; tidak muncul pada daftar ini.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>ID User</th><th>Nama Lengkap</th><th>Username</th><th>Password</th><th>Level Akses</th><th></th>
+            </tr></thead>
+            <tbody id="tblUser"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+  </main>
+
+  <footer>Data tersimpan otomatis di database lokal perangkat ini &middot; Prototipe PetaDonor</footer>
+</div>
+
+<div class="modal-bg" id="modalConfirm">
+  <div class="modal-box">
+    <h3 id="modalTitle">Hapus data?</h3>
+    <p id="modalText">Tindakan ini tidak dapat dibatalkan.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modalCancel">Batal</button>
+      <button class="btn btn-primary" id="modalOk">Ya, Hapus</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalEpiDetail">
+  <div class="modal-box modal-box-wide">
+    <h3 id="epiDetailTitle">Detail Kegiatan</h3>
+    <p id="epiDetailSubtitle" class="hint" style="margin:-6px 0 12px;"></p>
+
+    <label style="margin-top:0;">Jumlah Perolehan per Golongan Darah</label>
+    <div class="gol-grid" id="epiDetailGolGrid"></div>
+    <div class="total-line">
+      <span>Sub Total Perolehan Pengambilan</span>
+      <b id="epiDetailGolTotal">0</b>
+    </div>
+
+    <label>Gagal Pengambilan</label>
+    <div class="gol-grid" id="epiDetailGagalGrid"></div>
+    <div class="total-line">
+      <span>Sub Total Gagal Pengambilan</span>
+      <b id="epiDetailGagalTotal">0</b>
+    </div>
+
+    <div class="total-line grand">
+      <span>Jumlah Keseluruhan</span>
+      <b id="epiDetailKeseluruhanTotal">0</b>
+    </div>
+
+    <label style="margin-top:16px;">Epidemiologi (skrining reaktif)</label>
+    <div class="table-wrap table-wrap-flat" style="max-height:260px; overflow:auto;">
+      <table>
+        <thead><tr><th>No. Kantong</th><th>Parameter Reaktif</th></tr></thead>
+        <tbody id="tblEpiDetail"></tbody>
+      </table>
+    </div>
+
+    <div class="modal-actions modal-actions-split">
+      <div class="modal-actions-download">
+        <span class="hint modal-download-label">Unduh rincian ini:</span>
+        <button class="btn btn-ghost btn-download" id="btnEpiDetailExcel" type="button">⬇️ Excel (.xlsx)</button>
+        <button class="btn btn-ghost btn-download" id="btnEpiDetailPdf" type="button">⬇️ PDF</button>
+      </div>
+      <button class="btn btn-primary" id="btnEpiDetailClose">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- SheetJS (unduh rincian Detail Kegiatan sbg .xlsx) & jsPDF+autoTable (unduh sbg .pdf) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<!--
+  Kode JavaScript aplikasi dipecah jadi beberapa modul kecil (folder js/),
+  bukan ditumpuk dalam satu file. Urutan pemanggilan di bawah ini PENTING
+  (mengikuti urutan ketergantungan antar bagian):
+-->
+<script src="js/state.js"></script>       <!-- state global, kategori pencarian -->
+<script src="js/storage.js"></script>     <!-- IndexedDB / localStorage: simpan & backup data -->
+<script src="js/map.js"></script>         <!-- inisialisasi peta Leaflet & marker -->
+<script src="js/geocoding.js"></script>   <!-- ambil koordinat dari nama tempat (Nominatim) -->
+<script src="js/search.js"></script>      <!-- kotak pencarian lokasi di atas peta -->
+<script src="js/overpass.js"></script>    <!-- "Jelajahi kategori di area peta" (Overpass API) -->
+<script src="js/helpers.js"></script>     <!-- fungsi bantu umum (format, toast, dsb) -->
+<script src="js/combo-select.js"></script> <!-- dropdown pencarian utk Kecamatan/Wilayah/Zona Wilayah (Tab 1) -->
+<script src="js/auth.js"></script>        <!-- layar login/registrasi & tab 6: Administrator -->
+<script src="js/tabs.js"></script>        <!-- perpindahan tab -->
+<script src="js/topbar.js"></script>      <!-- statistik ringkas di header -->
+<script src="js/setting.js"></script>     <!-- tab 5: Setting (Input Data Kecamatan) -->
+<script src="js/master-data.js"></script> <!-- tab 1: Master Data -->
+<script src="js/kegiatan.js"></script>    <!-- tab 2: Input Kegiatan & Epidemiologi -->
+<script src="js/laporan.js"></script>     <!-- tab 3: Laporan -->
+<script src="js/init.js"></script>        <!-- render awal saat aplikasi dibuka -->
+</body>
+</html>
