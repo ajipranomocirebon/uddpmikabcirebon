@@ -13,5 +13,5 @@
    tidak sinkron antar perangkat -- supaya aplikasi tetap bisa dicoba
    sebelum Supabase disetel.
 =================================================================== */
-const SUPABASE_URL = 'ISI-DENGAN-PROJECT-URL-KAMU';
-const SUPABASE_ANON_KEY = 'ISI-DENGAN-ANON-KEY-KAMU';
+const SUPABASE_URL = 'https://bkfszncuiwjkjxghbmec.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_qKaC7thzFVJ4E4fhV2cw0A_PvYNrwj-';
