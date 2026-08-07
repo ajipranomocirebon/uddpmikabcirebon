@@ -12,6 +12,14 @@ function getJenisList(){
 function getZonaNamaList(){
   return state.zonaList.slice().sort((a,b)=>a.nama.localeCompare(b.nama)).map(z=>z.nama);
 }
+// Daftar nama Jenis Donor (mis. Donor Pertama, Donor Ulang) -- diatur admin
+// lewat tab 5 Setting -> "Jenis Donor" (state.jenisDonorList), pola sama
+// dengan getJenisList()/getZonaNamaList() di atas. Dipakai Tab 2 (Input
+// Kegiatan & Epidemiologi) untuk dropdown "Jenis Donor" per Nomor Kantong,
+// supaya tiap nomor kantong bisa direlasikan ke jenis donornya.
+function getJenisDonorNamaList(){
+  return state.jenisDonorList.slice().sort((a,b)=>a.nama.localeCompare(b.nama)).map(j=>j.nama);
+}
 
 function escapeHtml(str){
   return String(str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -72,15 +80,19 @@ function attachInputSanitizer(id, sanitizerFn){
 }
 
 // Satu entri epi = satu nomor kantong yang reaktif, bisa punya lebih dari
-// satu parameter (mis. HBsAg + HIV sekaligus). Fungsi ini juga menerjemahkan
-// format data LAMA (sebelum revisi ini) yang bentuknya masih
-// {jumlahReaktif, nomorKantong, jenis} -- satu jenis per baris -- supaya
-// data yang sudah tersimpan sebelumnya tetap terbaca dengan benar.
+// satu parameter (mis. HBsAg + HIV sekaligus), dan direlasikan ke SATU
+// Jenis Donor (mis. Donor Pertama/Donor Ulang, diatur lewat tab Setting ->
+// Jenis Donor) supaya diketahui nomor kantong tsb berasal dari jenis donor
+// apa. Fungsi ini juga menerjemahkan format data LAMA (sebelum revisi ini)
+// yang bentuknya masih {jumlahReaktif, nomorKantong, jenis} -- satu jenis
+// per baris, dan/atau belum punya jenisDonor sama sekali -- supaya data
+// yang sudah tersimpan sebelumnya tetap terbaca dengan benar (jenisDonor
+// default string kosong kalau belum pernah diisi).
 function normalizeEpiRow(r){
   if(Array.isArray(r.parameters)){
-    return { nomorKantong: r.nomorKantong || '', parameters: [...r.parameters] };
+    return { nomorKantong: r.nomorKantong || '', parameters: [...r.parameters], jenisDonor: r.jenisDonor || '' };
   }
-  return { nomorKantong: r.nomorKantong || '', parameters: r.jenis ? [r.jenis] : [] };
+  return { nomorKantong: r.nomorKantong || '', parameters: r.jenis ? [r.jenis] : [], jenisDonor: r.jenisDonor || '' };
 }
 
 /* confirm modal */

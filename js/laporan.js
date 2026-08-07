@@ -31,12 +31,12 @@ function renderLaporan(){
   rows.forEach(k=>{
     const t = state.master.find(x=>x.id===k.tempatId);
     k.epi.forEach(e=>{
-      const {nomorKantong, parameters} = normalizeEpiRow(e);
+      const {nomorKantong, parameters, jenisDonor} = normalizeEpiRow(e);
       // Tiap parameter yang reaktif pada nomor kantong ini dihitung 1x
       // pada rekap per parameter (satu kantong bisa menyumbang ke lebih
       // dari satu parameter sekaligus).
       parameters.forEach(p=>{ counts[p] = (counts[p]||0) + 1; });
-      detail.push({tanggal:k.tanggal, tempat:t?t.nama:'—', wilayah:t?t.wilayah:'—', nomorKantong, parameters, zona:k.zona});
+      detail.push({tanggal:k.tanggal, tempat:t?t.nama:'—', wilayah:t?t.wilayah:'—', nomorKantong, jenisDonor, parameters, zona:k.zona});
     });
   });
 
@@ -62,7 +62,7 @@ function renderLaporan(){
 
   const tbody = document.getElementById('tblLaporan');
   if(detail.length===0){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Tidak ada data reaktif pada periode/filter ini.</td></tr>`; return;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Tidak ada data reaktif pada periode/filter ini.</td></tr>`; return;
   }
   detail.sort((a,b)=> a.tanggal < b.tanggal ? 1 : -1);
   tbody.innerHTML = detail.map(d=>`
@@ -71,6 +71,7 @@ function renderLaporan(){
       <td>${escapeHtml(d.tempat)}</td>
       <td>${escapeHtml(d.wilayah)}</td>
       <td class="mono">${escapeHtml(d.nomorKantong||'—')}</td>
+      <td>${escapeHtml(d.jenisDonor||'—')}</td>
       <td>${d.parameters.map(p=>`<span class="badge param">${p}</span>`).join(' ') || '—'}</td>
       <td>${zonaBadge(d.zona)}</td>
     </tr>
