@@ -61,6 +61,7 @@ function renderEpiRows(){
   const wrap = document.getElementById('epiList');
   document.getElementById('epiEmptyMsg').style.display = epiRows.length? 'none':'block';
   const jenisDonorList = getJenisDonorNamaList();
+  const metodePengujianList = getMetodePengujianNamaList();
   wrap.innerHTML = epiRows.map(r=>{
     const sisaParam = getJenisList().filter(p=> !r.parameters.includes(p));
     return `
@@ -78,6 +79,12 @@ function renderEpiRows(){
         ${jenisDonorList.map(nm=>`<option value="${escapeHtml(nm)}" ${r.jenisDonor===nm?'selected':''}>${escapeHtml(nm)}</option>`).join('')}
       </select>
       ${jenisDonorList.length===0 ? `<p class="epi-param-empty">Belum ada Jenis Donor terdaftar — tambahkan lewat tab ⚙️ Setting → Jenis Donor.</p>` : ''}
+      <label style="margin:10px 0 6px;">Metode Pengujian <span class="req">*</span></label>
+      <select onchange="updateEpiMetodePengujian(${r.rid}, this.value)" ${metodePengujianList.length===0?'disabled':''}>
+        <option value="">— pilih metode pengujian —</option>
+        ${metodePengujianList.map(nm=>`<option value="${escapeHtml(nm)}" ${r.metodePengujian===nm?'selected':''}>${escapeHtml(nm)}</option>`).join('')}
+      </select>
+      ${metodePengujianList.length===0 ? `<p class="epi-param-empty">Belum ada Metode Pengujian terdaftar — tambahkan lewat tab ⚙️ Setting → Metode Pengujian.</p>` : ''}
       <label style="margin:10px 0 6px;">Parameter Reaktif <span class="req">*</span></label>
       <div class="epi-param-chips">
         ${r.parameters.map(p=>`
@@ -141,6 +148,10 @@ function updateEpiJenisDonor(rid, val){
   const r = epiRows.find(x=>x.rid===rid);
   if(r) r.jenisDonor = val;
 }
+function updateEpiMetodePengujian(rid, val){
+  const r = epiRows.find(x=>x.rid===rid);
+  if(r) r.metodePengujian = val;
+}
 function addEpiParam(rid, param){
   const r = epiRows.find(x=>x.rid===rid);
   if(!r) return;
@@ -171,7 +182,7 @@ function removeEpiRow(rid){
   renderEpiRows();
 }
 document.getElementById('btnTambahEpi').addEventListener('click', ()=>{
-  epiRows.push({rid:epiSeq++, nomorKantong:'', parameters:[], jenisDonor:''});
+  epiRows.push({rid:epiSeq++, nomorKantong:'', parameters:[], jenisDonor:'', metodePengujian:''});
   renderEpiRows();
 });
 
@@ -198,14 +209,15 @@ formKegiatan.addEventListener('submit', async (e)=>{
   if(!zona){ showToast('kegiatanToast','Zona wajib dipilih.','err'); return; }
 
   // Validasi data reaktif: tiap nomor kantong wajib diisi, wajib
-  // direlasikan ke satu Jenis Donor & minimal 1 parameter dipilih, dan
-  // nomor kantong tidak boleh diinput dobel dalam satu kegiatan yang sama.
-  // Jenis Donor HANYA diwajibkan kalau daftarnya sudah diisi admin lewat
-  // tab Setting -> Jenis Donor (getJenisDonorNamaList().length>0) --
-  // supaya kegiatan lama/pengguna yang belum sempat mengisi daftar Jenis
-  // Donor tetap bisa menyimpan data seperti biasa (defensif, sama pola
-  // dgn pengecekan zona "Aman" di syncZonaOtomatis()).
+  // direlasikan ke satu Jenis Donor & satu Metode Pengujian, dan minimal 1
+  // parameter dipilih, dan nomor kantong tidak boleh diinput dobel dalam
+  // satu kegiatan yang sama. Jenis Donor & Metode Pengujian HANYA
+  // diwajibkan kalau daftarnya masing-masing sudah diisi admin lewat tab
+  // Setting -- supaya kegiatan lama/pengguna yang belum sempat mengisi
+  // daftar tsb tetap bisa menyimpan data seperti biasa (defensif, sama
+  // pola dgn pengecekan zona "Aman" di syncZonaOtomatis()).
   const jenisDonorTersedia = getJenisDonorNamaList();
+  const metodePengujianTersedia = getMetodePengujianNamaList();
   const seenKantong = new Set();
   for(const r of epiRows){
     const kantong = r.nomorKantong.trim();
@@ -214,6 +226,9 @@ formKegiatan.addEventListener('submit', async (e)=>{
     }
     if(jenisDonorTersedia.length>0 && !r.jenisDonor){
       showToast('kegiatanToast',`Pilih Jenis Donor untuk nomor kantong "${kantong}".`,'err'); return;
+    }
+    if(metodePengujianTersedia.length>0 && !r.metodePengujian){
+      showToast('kegiatanToast',`Pilih Metode Pengujian untuk nomor kantong "${kantong}".`,'err'); return;
     }
     if(r.parameters.length===0){
       showToast('kegiatanToast',`Pilih minimal satu Parameter Reaktif untuk nomor kantong "${kantong}".`,'err'); return;
@@ -239,7 +254,7 @@ formKegiatan.addEventListener('submit', async (e)=>{
       AB:parseInt(document.getElementById('gagalAB').value)||0,
       O:parseInt(document.getElementById('gagalO').value)||0
     },
-    epi: epiRows.map(r=>({nomorKantong:r.nomorKantong.trim(), parameters:[...r.parameters], jenisDonor:r.jenisDonor||''}))
+    epi: epiRows.map(r=>({nomorKantong:r.nomorKantong.trim(), parameters:[...r.parameters], jenisDonor:r.jenisDonor||'', metodePengujian:r.metodePengujian||''}))
   };
 
   // Kalau Epidemiologi (skrining reaktif) dikosongkan (tidak ada Nomor
@@ -544,14 +559,15 @@ function showEpiDetail(id){
 
   const tbody = document.getElementById('tblEpiDetail');
   if(k.epi.length===0){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Tidak ada nomor kantong reaktif pada kegiatan ini.</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Tidak ada nomor kantong reaktif pada kegiatan ini.</td></tr>`;
   }else{
     tbody.innerHTML = k.epi.map(r=>{
-      const {nomorKantong, parameters, jenisDonor} = normalizeEpiRow(r);
+      const {nomorKantong, parameters, jenisDonor, metodePengujian} = normalizeEpiRow(r);
       return `
       <tr>
         <td class="mono">${escapeHtml(nomorKantong||'—')}</td>
         <td>${escapeHtml(jenisDonor||'—')}</td>
+        <td>${escapeHtml(metodePengujian||'—')}</td>
         <td>${parameters.map(p=>`<span class="badge param">${p}</span>`).join(' ') || '—'}</td>
       </tr>`;
     }).join('');
@@ -575,8 +591,8 @@ function getEpiDetailExportData(id){
   const totalBerhasil = k.gol.A+k.gol.B+k.gol.AB+k.gol.O;
   const totalGagal = (gagal.A||0)+(gagal.B||0)+(gagal.AB||0)+(gagal.O||0);
   const epiRows = k.epi.map(r=>{
-    const {nomorKantong, parameters, jenisDonor} = normalizeEpiRow(r);
-    return { nomorKantong: nomorKantong || '—', jenisDonor: jenisDonor || '—', parameter: parameters.join(', ') || '—' };
+    const {nomorKantong, parameters, jenisDonor, metodePengujian} = normalizeEpiRow(r);
+    return { nomorKantong: nomorKantong || '—', jenisDonor: jenisDonor || '—', metodePengujian: metodePengujian || '—', parameter: parameters.join(', ') || '—' };
   });
   return {
     namaTempat: t ? t.nama : '(lokasi dihapus)',
@@ -614,12 +630,12 @@ function downloadEpiDetailExcel(){
     ['Jumlah Keseluruhan', d.totalKeseluruhan],
     [],
     ['Epidemiologi (skrining reaktif)'],
-    ['No. Kantong','Jenis Donor','Parameter Reaktif']
+    ['No. Kantong','Jenis Donor','Metode Pengujian','Parameter Reaktif']
   ];
   if(d.epiRows.length===0){
-    aoa.push(['Tidak ada nomor kantong reaktif pada kegiatan ini.','','']);
+    aoa.push(['Tidak ada nomor kantong reaktif pada kegiatan ini.','','','']);
   }else{
-    d.epiRows.forEach(r=> aoa.push([r.nomorKantong, r.jenisDonor, r.parameter]));
+    d.epiRows.forEach(r=> aoa.push([r.nomorKantong, r.jenisDonor, r.metodePengujian, r.parameter]));
   }
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -673,8 +689,8 @@ function downloadEpiDetailPdf(){
 
   doc.autoTable({
     startY: y,
-    head: [['No. Kantong','Jenis Donor','Parameter Reaktif']],
-    body: d.epiRows.length ? d.epiRows.map(r=>[r.nomorKantong, r.jenisDonor, r.parameter]) : [['Tidak ada nomor kantong reaktif pada kegiatan ini.','','']],
+    head: [['No. Kantong','Jenis Donor','Metode Pengujian','Parameter Reaktif']],
+    body: d.epiRows.length ? d.epiRows.map(r=>[r.nomorKantong, r.jenisDonor, r.metodePengujian, r.parameter]) : [['Tidak ada nomor kantong reaktif pada kegiatan ini.','','','']],
     theme: 'grid', margin:{left:marginL,right:marginL}, styles:{fontSize:10},
     headStyles:{fillColor:[123,26,26]}
   });

@@ -326,7 +326,7 @@
             <label style="margin:0;">Epidemiologi (skrining reaktif) <span class="opt">(opsional)</span></label>
             <button type="button" class="btn btn-line btn-sm" id="btnTambahEpi">+ Tambah Nomor Kantong</button>
           </div>
-          <p class="hint" style="margin:4px 0 0;">Epidemiologi (skrining reaktif) merupakan bagian dari <b>Sub Total Perolehan Pengambilan</b> di atas — bukan penjumlahan tambahan — karena skrining reaktif dilakukan terhadap nomor kantong yang secara hasil uji lab dinyatakan reaktif dari data perolehan yang sudah diinput. Boleh dikosongkan kalau tidak ada hasil reaktif pada kegiatan ini. Satu nomor kantong bisa reaktif pada lebih dari satu parameter sekaligus — tambahkan nomor kantongnya dulu, pilih <b>Jenis Donor</b>-nya (Donor Pertama/Donor Ulang, dst. — diatur lewat tab <b>⚙️ Setting → Jenis Donor</b>), lalu gunakan "+ Tambah Parameter" di dalamnya untuk memilih parameter mana saja yang reaktif (daftar pilihan parameter diatur lewat tab <b>⚙️ Setting → Input Parameter</b>).</p>
+          <p class="hint" style="margin:4px 0 0;">Epidemiologi (skrining reaktif) merupakan bagian dari <b>Sub Total Perolehan Pengambilan</b> di atas — bukan penjumlahan tambahan — karena skrining reaktif dilakukan terhadap nomor kantong yang secara hasil uji lab dinyatakan reaktif dari data perolehan yang sudah diinput. Boleh dikosongkan kalau tidak ada hasil reaktif pada kegiatan ini. Satu nomor kantong bisa reaktif pada lebih dari satu parameter sekaligus — tambahkan nomor kantongnya dulu, pilih <b>Jenis Donor</b>-nya (Donor Pertama/Donor Ulang, dst. — diatur lewat tab <b>⚙️ Setting → Jenis Donor</b>) dan <b>Metode Pengujian</b>-nya (NAT/CLIA, dst. — diatur lewat tab <b>⚙️ Setting → Metode Pengujian</b>), lalu gunakan "+ Tambah Parameter" di dalamnya untuk memilih parameter mana saja yang reaktif (daftar pilihan parameter diatur lewat tab <b>⚙️ Setting → Input Parameter</b>).</p>
           <div id="epiList"></div>
           <p class="epi-empty" id="epiEmptyMsg">Belum ada nomor kantong reaktif ditambahkan.</p>
 
@@ -420,7 +420,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>Tanggal</th><th>Tempat</th><th>Wilayah</th><th>No. Kantong</th><th>Jenis Donor</th><th>Parameter Reaktif</th><th>Zona</th>
+              <th>Tanggal</th><th>Tempat</th><th>Wilayah</th><th>No. Kantong</th><th>Jenis Donor</th><th>Metode Pengujian</th><th>Parameter Reaktif</th><th>Zona</th>
             </tr></thead>
             <tbody id="tblLaporan"></tbody>
           </table>
@@ -855,7 +855,7 @@
     <label style="margin-top:16px;">Epidemiologi (skrining reaktif)</label>
     <div class="table-wrap table-wrap-flat" style="max-height:260px; overflow:auto;">
       <table>
-        <thead><tr><th>No. Kantong</th><th>Jenis Donor</th><th>Parameter Reaktif</th></tr></thead>
+        <thead><tr><th>No. Kantong</th><th>Jenis Donor</th><th>Metode Pengujian</th><th>Parameter Reaktif</th></tr></thead>
         <tbody id="tblEpiDetail"></tbody>
       </table>
     </div>

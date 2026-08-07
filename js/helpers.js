@@ -20,6 +20,14 @@ function getZonaNamaList(){
 function getJenisDonorNamaList(){
   return state.jenisDonorList.slice().sort((a,b)=>a.nama.localeCompare(b.nama)).map(j=>j.nama);
 }
+// Daftar nama Metode Pengujian (mis. NAT, CLIA) -- diatur admin lewat tab
+// 5 Setting -> "Metode Pengujian" (state.metodePengujianList), pola sama
+// dengan getJenisDonorNamaList() di atas. Dipakai Tab 2 (Input Kegiatan &
+// Epidemiologi) untuk dropdown "Metode Pengujian" per Nomor Kantong,
+// supaya tiap nomor kantong bisa direlasikan ke metode pengujiannya.
+function getMetodePengujianNamaList(){
+  return state.metodePengujianList.slice().sort((a,b)=>a.nama.localeCompare(b.nama)).map(m=>m.nama);
+}
 
 function escapeHtml(str){
   return String(str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -81,18 +89,20 @@ function attachInputSanitizer(id, sanitizerFn){
 
 // Satu entri epi = satu nomor kantong yang reaktif, bisa punya lebih dari
 // satu parameter (mis. HBsAg + HIV sekaligus), dan direlasikan ke SATU
-// Jenis Donor (mis. Donor Pertama/Donor Ulang, diatur lewat tab Setting ->
-// Jenis Donor) supaya diketahui nomor kantong tsb berasal dari jenis donor
-// apa. Fungsi ini juga menerjemahkan format data LAMA (sebelum revisi ini)
-// yang bentuknya masih {jumlahReaktif, nomorKantong, jenis} -- satu jenis
-// per baris, dan/atau belum punya jenisDonor sama sekali -- supaya data
-// yang sudah tersimpan sebelumnya tetap terbaca dengan benar (jenisDonor
-// default string kosong kalau belum pernah diisi).
+// Jenis Donor (mis. Donor Pertama/Donor Ulang) serta SATU Metode Pengujian
+// (mis. NAT/CLIA) -- keduanya diatur lewat tab Setting -> Jenis Donor /
+// Metode Pengujian -- supaya diketahui nomor kantong tsb berasal dari
+// jenis donor & metode pengujian apa. Fungsi ini juga menerjemahkan format
+// data LAMA (sebelum revisi ini) yang bentuknya masih {jumlahReaktif,
+// nomorKantong, jenis} -- satu jenis per baris, dan/atau belum punya
+// jenisDonor/metodePengujian sama sekali -- supaya data yang sudah
+// tersimpan sebelumnya tetap terbaca dengan benar (default string kosong
+// kalau belum pernah diisi).
 function normalizeEpiRow(r){
   if(Array.isArray(r.parameters)){
-    return { nomorKantong: r.nomorKantong || '', parameters: [...r.parameters], jenisDonor: r.jenisDonor || '' };
+    return { nomorKantong: r.nomorKantong || '', parameters: [...r.parameters], jenisDonor: r.jenisDonor || '', metodePengujian: r.metodePengujian || '' };
   }
-  return { nomorKantong: r.nomorKantong || '', parameters: r.jenis ? [r.jenis] : [], jenisDonor: r.jenisDonor || '' };
+  return { nomorKantong: r.nomorKantong || '', parameters: r.jenis ? [r.jenis] : [], jenisDonor: r.jenisDonor || '', metodePengujian: r.metodePengujian || '' };
 }
 
 /* confirm modal */
