@@ -507,3 +507,188 @@ function populateFilterZonaDropdown(){
 }
 
 renderZonaColorGrid();
+
+/* ===================================================================
+   TAB 5 : SETTING — JENIS DONOR
+   Mengelola daftar Jenis Donor (Donor Baru, Donor Ulang, dst). Pola yang
+   dipakai sama persis dengan panel "Input Parameter" di atas: satu field
+   nama + ID auto-increment, dengan Edit & Hapus.
+=================================================================== */
+const formJenisDonor = document.getElementById('formJenisDonor');
+
+function resetFormJenisDonor(){
+  formJenisDonor.reset();
+  document.getElementById('jenisDonorId').value = '';
+  document.getElementById('jenisDonorFormTitle').textContent = 'Input Jenis Donor';
+}
+
+attachInputSanitizer('settingJenisDonorNama', sanitizeHurufAngkaSpasi);
+
+formJenisDonor.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const nama = document.getElementById('settingJenisDonorNama').value.trim();
+  const idField = document.getElementById('jenisDonorId').value;
+
+  if(!nama){
+    showToast('jenisDonorToast','Jenis Donor wajib diisi.','err'); return;
+  }
+  if(!REGEX_HURUF_ANGKA_SPASI.test(nama)){
+    showToast('jenisDonorToast','Jenis Donor hanya boleh berisi huruf, angka, dan spasi.','err'); return;
+  }
+
+  // Cegah nama jenis donor dobel (case-insensitive), kecuali data itu sendiri saat mengubah
+  const dup = state.jenisDonorList.find(j=>
+    j.nama.toLowerCase()===nama.toLowerCase() && String(j.id)!==idField);
+  if(dup){
+    showToast('jenisDonorToast','Jenis Donor ini sudah terdaftar.','err'); return;
+  }
+
+  if(idField){
+    const idx = state.jenisDonorList.findIndex(j=>j.id===parseInt(idField));
+    if(idx>-1){
+      state.jenisDonorList[idx] = {...state.jenisDonorList[idx], nama};
+    }
+    showToast('jenisDonorToast','Perubahan data jenis donor berhasil disimpan.','ok');
+  }else{
+    state.jenisDonorList.push({id: state.nextJenisDonorId++, nama});
+    showToast('jenisDonorToast','Jenis donor baru berhasil ditambahkan.','ok');
+  }
+
+  await persistJenisDonorList();
+  resetFormJenisDonor();
+  renderJenisDonorSettingTable();
+});
+
+document.getElementById('btnBatalJenisDonor').addEventListener('click', resetFormJenisDonor);
+
+function editJenisDonor(id){
+  const j = state.jenisDonorList.find(x=>x.id===id);
+  if(!j) return;
+  document.getElementById('jenisDonorId').value = j.id;
+  document.getElementById('settingJenisDonorNama').value = j.nama;
+  document.getElementById('jenisDonorFormTitle').textContent = 'Ubah Jenis Donor: ' + j.nama;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function deleteJenisDonor(id){
+  const j = state.jenisDonorList.find(x=>x.id===id);
+  if(!j) return;
+  askConfirm(
+    'Hapus jenis donor ini?',
+    `Jenis Donor "${j.nama}" akan dihapus permanen.`,
+    async ()=>{
+      state.jenisDonorList = state.jenisDonorList.filter(x=>x.id!==id);
+      await persistJenisDonorList();
+      renderJenisDonorSettingTable();
+    }
+  );
+}
+
+function renderJenisDonorSettingTable(){
+  const tbody = document.getElementById('tblJenisDonor');
+  if(state.jenisDonorList.length===0){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Belum ada data jenis donor. Tambahkan lewat form di samping.</td></tr>`; return;
+  }
+  tbody.innerHTML = state.jenisDonorList.slice().sort((a,b)=>a.nama.localeCompare(b.nama)).map(j=>`
+    <tr>
+      <td class="mono">${j.id}</td>
+      <td><b>${escapeHtml(j.nama)}</b></td>
+      <td style="white-space:nowrap;">
+        <button class="icon-btn" onclick="editJenisDonor(${j.id})">✏️ Edit</button>
+        <button class="icon-btn" onclick="deleteJenisDonor(${j.id})">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+/* ===================================================================
+   TAB 5 : SETTING — METODE PENGUJIAN
+   Mengelola daftar Metode/Jenis Pengujian (Rapid Test, ELISA, CLIA, dst).
+   Pola yang dipakai sama persis dengan panel "Jenis Donor" di atas.
+=================================================================== */
+const formMetodePengujian = document.getElementById('formMetodePengujian');
+
+function resetFormMetodePengujian(){
+  formMetodePengujian.reset();
+  document.getElementById('metodePengujianId').value = '';
+  document.getElementById('metodePengujianFormTitle').textContent = 'Input Metode Pengujian';
+}
+
+attachInputSanitizer('settingMetodePengujianNama', sanitizeHurufAngkaSpasi);
+
+formMetodePengujian.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const nama = document.getElementById('settingMetodePengujianNama').value.trim();
+  const idField = document.getElementById('metodePengujianId').value;
+
+  if(!nama){
+    showToast('metodePengujianToast','Jenis Pengujian wajib diisi.','err'); return;
+  }
+  if(!REGEX_HURUF_ANGKA_SPASI.test(nama)){
+    showToast('metodePengujianToast','Jenis Pengujian hanya boleh berisi huruf, angka, dan spasi.','err'); return;
+  }
+
+  // Cegah nama metode pengujian dobel (case-insensitive), kecuali data itu sendiri saat mengubah
+  const dup = state.metodePengujianList.find(m=>
+    m.nama.toLowerCase()===nama.toLowerCase() && String(m.id)!==idField);
+  if(dup){
+    showToast('metodePengujianToast','Jenis Pengujian ini sudah terdaftar.','err'); return;
+  }
+
+  if(idField){
+    const idx = state.metodePengujianList.findIndex(m=>m.id===parseInt(idField));
+    if(idx>-1){
+      state.metodePengujianList[idx] = {...state.metodePengujianList[idx], nama};
+    }
+    showToast('metodePengujianToast','Perubahan data metode pengujian berhasil disimpan.','ok');
+  }else{
+    state.metodePengujianList.push({id: state.nextMetodePengujianId++, nama});
+    showToast('metodePengujianToast','Metode pengujian baru berhasil ditambahkan.','ok');
+  }
+
+  await persistMetodePengujianList();
+  resetFormMetodePengujian();
+  renderMetodePengujianSettingTable();
+});
+
+document.getElementById('btnBatalMetodePengujian').addEventListener('click', resetFormMetodePengujian);
+
+function editMetodePengujian(id){
+  const m = state.metodePengujianList.find(x=>x.id===id);
+  if(!m) return;
+  document.getElementById('metodePengujianId').value = m.id;
+  document.getElementById('settingMetodePengujianNama').value = m.nama;
+  document.getElementById('metodePengujianFormTitle').textContent = 'Ubah Metode Pengujian: ' + m.nama;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function deleteMetodePengujian(id){
+  const m = state.metodePengujianList.find(x=>x.id===id);
+  if(!m) return;
+  askConfirm(
+    'Hapus metode pengujian ini?',
+    `Jenis Pengujian "${m.nama}" akan dihapus permanen.`,
+    async ()=>{
+      state.metodePengujianList = state.metodePengujianList.filter(x=>x.id!==id);
+      await persistMetodePengujianList();
+      renderMetodePengujianSettingTable();
+    }
+  );
+}
+
+function renderMetodePengujianSettingTable(){
+  const tbody = document.getElementById('tblMetodePengujian');
+  if(state.metodePengujianList.length===0){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Belum ada data metode pengujian. Tambahkan lewat form di samping.</td></tr>`; return;
+  }
+  tbody.innerHTML = state.metodePengujianList.slice().sort((a,b)=>a.nama.localeCompare(b.nama)).map(m=>`
+    <tr>
+      <td class="mono">${m.id}</td>
+      <td><b>${escapeHtml(m.nama)}</b></td>
+      <td style="white-space:nowrap;">
+        <button class="icon-btn" onclick="editMetodePengujian(${m.id})">✏️ Edit</button>
+        <button class="icon-btn" onclick="deleteMetodePengujian(${m.id})">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}

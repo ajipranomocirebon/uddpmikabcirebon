@@ -654,6 +654,107 @@
       </div>
     </div>
 
+    <!-- Panel/folder "Jenis Donor" -- sama pola dgn panel "Input Parameter"
+         di atas (ID auto-increment + satu field nama, dengan Edit & Hapus).
+         Data yang diinput di sini menjadi sumber daftar Jenis Donor. -->
+    <div class="settings-group" data-group="jenisdonor">
+      <button type="button" class="settings-group-header" onclick="toggleSettingsGroup(this)">
+        <span class="settings-group-icon">🩸</span>
+        <span class="settings-group-title">Jenis Donor</span>
+        <span class="settings-group-desc">Daftar Jenis Donor (cth. Donor Baru, Donor Ulang, Donor Pengganti)</span>
+        <span class="settings-group-chevron">▾</span>
+      </button>
+      <div class="settings-group-body">
+        <div class="grid2">
+          <div class="card">
+            <h3 id="jenisDonorFormTitle">Input Jenis Donor</h3>
+            <p class="hint">Data jenis donor yang diinput di sini akan tersimpan sebagai daftar Jenis Donor yang dikelola lewat tab Setting.</p>
+            <div class="toast" id="jenisDonorToast"></div>
+
+            <form id="formJenisDonor">
+              <!-- ID Donor: auto-increment, terisi otomatis & tersembunyi (tidak perlu diisi admin) -->
+              <input type="hidden" id="jenisDonorId" />
+
+              <label>Jenis Donor <span class="req">*</span></label>
+              <input type="text" id="settingJenisDonorNama" placeholder="cth. Donor Baru" required
+                     pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                     autocomplete="off" />
+              <p class="field-note">Hanya huruf, angka, dan spasi. cth. Donor Baru, Donor Ulang, Donor Pengganti.</p>
+
+              <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Simpan</button>
+                <button type="button" class="btn btn-ghost" id="btnBatalJenisDonor">Batal</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <h3>Daftar Jenis Donor Terdaftar</h3>
+            <p class="hint">Klik Edit untuk mengubah data, atau Hapus untuk menghapus jenis donor.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>ID Donor</th><th>Jenis Donor</th><th></th>
+                </tr></thead>
+                <tbody id="tblJenisDonor"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel/folder "Metode Pengujian" -- sama pola dgn panel "Jenis
+         Donor" di atas (ID auto-increment + satu field nama, dengan Edit
+         & Hapus). Data yang diinput di sini menjadi sumber daftar Metode
+         Pengujian (jenis pengujian). -->
+    <div class="settings-group" data-group="metodepengujian">
+      <button type="button" class="settings-group-header" onclick="toggleSettingsGroup(this)">
+        <span class="settings-group-icon">🧫</span>
+        <span class="settings-group-title">Metode Pengujian</span>
+        <span class="settings-group-desc">Daftar Jenis Pengujian (cth. Rapid Test, ELISA, CLIA)</span>
+        <span class="settings-group-chevron">▾</span>
+      </button>
+      <div class="settings-group-body">
+        <div class="grid2">
+          <div class="card">
+            <h3 id="metodePengujianFormTitle">Input Metode Pengujian</h3>
+            <p class="hint">Data metode pengujian yang diinput di sini akan tersimpan sebagai daftar Jenis Pengujian yang dikelola lewat tab Setting.</p>
+            <div class="toast" id="metodePengujianToast"></div>
+
+            <form id="formMetodePengujian">
+              <!-- ID Pengujian: auto-increment, terisi otomatis & tersembunyi (tidak perlu diisi admin) -->
+              <input type="hidden" id="metodePengujianId" />
+
+              <label>Jenis Pengujian <span class="req">*</span></label>
+              <input type="text" id="settingMetodePengujianNama" placeholder="cth. Rapid Test" required
+                     pattern="[A-Za-z0-9\s]*" title="Hanya huruf, angka, dan spasi yang diperbolehkan"
+                     autocomplete="off" />
+              <p class="field-note">Hanya huruf, angka, dan spasi. cth. Rapid Test, ELISA, CLIA.</p>
+
+              <div class="btn-row">
+                <button type="submit" class="btn btn-primary">Simpan</button>
+                <button type="button" class="btn btn-ghost" id="btnBatalMetodePengujian">Batal</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <h3>Daftar Metode Pengujian Terdaftar</h3>
+            <p class="hint">Klik Edit untuk mengubah data, atau Hapus untuk menghapus metode pengujian.</p>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>ID Pengujian</th><th>Jenis Pengujian</th><th></th>
+                </tr></thead>
+                <tbody id="tblMetodePengujian"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <!-- ============ TAB 6 : ADMINISTRATOR ============ -->

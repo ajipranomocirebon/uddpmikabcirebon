@@ -10,6 +10,8 @@ function renderAll(){
   renderKecamatanSettingTable();
   renderParameterSettingTable();
   renderZonaSettingTable();
+  renderJenisDonorSettingTable();
+  renderMetodePengujianSettingTable();
   renderUserTable();
   renderLegend();
   renderTopbarStats();

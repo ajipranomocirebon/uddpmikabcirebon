@@ -59,12 +59,16 @@ async function loadState(){
     const par = await storageGet('parameter-data');
     const zon = await storageGet('zona-data');
     const usr = await storageGet('user-data');
+    const jd = await storageGet('jenisdonor-data');
+    const mp = await storageGet('metodepengujian-data');
     if(m) state.master = JSON.parse(m);
     if(k) state.kegiatan = JSON.parse(k);
     if(kec) state.kecamatanList = JSON.parse(kec);
     if(par) state.parameterList = JSON.parse(par);
     if(zon) state.zonaList = JSON.parse(zon);
     if(usr) state.userList = JSON.parse(usr);
+    if(jd) state.jenisDonorList = JSON.parse(jd);
+    if(mp) state.metodePengujianList = JSON.parse(mp);
   }catch(e){ /* belum ada data tersimpan — mulai kosong */ }
   // Kalau belum pernah ada data Parameter tersimpan sama sekali (instalasi
   // baru / migrasi dari versi sebelum tab Setting punya "Input Parameter"),
@@ -105,6 +109,8 @@ async function loadState(){
   state.nextParameterId = state.parameterList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
   state.nextZonaId = state.zonaList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
   state.nextUserId = state.userList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
+  state.nextJenisDonorId = state.jenisDonorList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
+  state.nextMetodePengujianId = state.metodePengujianList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
   if(zonaBerubah) await persistZonaList(); // simpan permanen supaya migrasi ini cukup sekali
   updateStorageStatus();
 }
@@ -126,6 +132,12 @@ async function persistZonaList(){
 async function persistUserList(){
   try{ await storageSet('user-data', JSON.stringify(state.userList)); updateStorageStatus(); }catch(e){ console.error(e); }
 }
+async function persistJenisDonorList(){
+  try{ await storageSet('jenisdonor-data', JSON.stringify(state.jenisDonorList)); updateStorageStatus(); }catch(e){ console.error(e); }
+}
+async function persistMetodePengujianList(){
+  try{ await storageSet('metodepengujian-data', JSON.stringify(state.metodePengujianList)); updateStorageStatus(); }catch(e){ console.error(e); }
+}
 
 function updateStorageStatus(){
   const el = document.getElementById('storageStatus');
@@ -141,7 +153,8 @@ function exportBackupJSON(){
   const payload = {
     app:'PetaDonor', exportedAt:new Date().toISOString(),
     master: state.master, kegiatan: state.kegiatan, kecamatanList: state.kecamatanList,
-    parameterList: state.parameterList, zonaList: state.zonaList, userList: state.userList
+    parameterList: state.parameterList, zonaList: state.zonaList, userList: state.userList,
+    jenisDonorList: state.jenisDonorList, metodePengujianList: state.metodePengujianList
   };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
@@ -164,9 +177,12 @@ function importBackupJSON(file, mode){
       const parameterList = Array.isArray(parsed.parameterList) ? parsed.parameterList : [];
       const zonaList = Array.isArray(parsed.zonaList) ? parsed.zonaList : [];
       const userList = Array.isArray(parsed.userList) ? parsed.userList : [];
+      const jenisDonorList = Array.isArray(parsed.jenisDonorList) ? parsed.jenisDonorList : [];
+      const metodePengujianList = Array.isArray(parsed.metodePengujianList) ? parsed.metodePengujianList : [];
       if(mode==='replace'){
         state.master = master; state.kegiatan = kegiatan; state.kecamatanList = kecamatanList;
         state.parameterList = parameterList; state.zonaList = zonaList;
+        state.jenisDonorList = jenisDonorList; state.metodePengujianList = metodePengujianList;
         // Username "ajipranomo" dicadangkan khusus utk Administrator (lihat js/auth.js)
         // -- kalau ada di file cadangan (mis. dari ekspor lama), lewati supaya tidak
         // bentrok dgn akun Administrator yang selalu tetap/hardcode.
@@ -208,6 +224,20 @@ function importBackupJSON(file, mode){
           seenUsr.add(uname);
           state.userList.push({...u, id: nextUsr}); nextUsr++;
         });
+        let nextJd = state.jenisDonorList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
+        const seenJd = new Set(state.jenisDonorList.map(x=>x.nama.toLowerCase()));
+        jenisDonorList.forEach(j=>{
+          if(seenJd.has(j.nama.toLowerCase())) return; // lewati jenis donor yang namanya sudah ada
+          seenJd.add(j.nama.toLowerCase());
+          state.jenisDonorList.push({...j, id: nextJd}); nextJd++;
+        });
+        let nextMp = state.metodePengujianList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
+        const seenMp = new Set(state.metodePengujianList.map(x=>x.nama.toLowerCase()));
+        metodePengujianList.forEach(mtd=>{
+          if(seenMp.has(mtd.nama.toLowerCase())) return; // lewati metode pengujian yang namanya sudah ada
+          seenMp.add(mtd.nama.toLowerCase());
+          state.metodePengujianList.push({...mtd, id: nextMp}); nextMp++;
+        });
       }
       state.nextMasterId = state.master.reduce((a,b)=>Math.max(a,b.id),0) + 1;
       state.nextKegiatanId = state.kegiatan.reduce((a,b)=>Math.max(a,b.id),0) + 1;
@@ -215,7 +245,9 @@ function importBackupJSON(file, mode){
       state.nextParameterId = state.parameterList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
       state.nextZonaId = state.zonaList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
       state.nextUserId = state.userList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
-      await persistMaster(); await persistKegiatan(); await persistKecamatanList(); await persistParameterList(); await persistZonaList(); await persistUserList();
+      state.nextJenisDonorId = state.jenisDonorList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
+      state.nextMetodePengujianId = state.metodePengujianList.reduce((a,b)=>Math.max(a,b.id),0) + 1;
+      await persistMaster(); await persistKegiatan(); await persistKecamatanList(); await persistParameterList(); await persistZonaList(); await persistUserList(); await persistJenisDonorList(); await persistMetodePengujianList();
       renderAll();
       showToast('backupToast', mode==='replace' ? 'Data berhasil dipulihkan (menggantikan data lama).' : 'Data cadangan berhasil digabungkan.', 'ok');
     }catch(err){

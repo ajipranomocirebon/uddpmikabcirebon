@@ -13,6 +13,8 @@ let state = {
                      // Kecamatan, Wilayah & Zona Wilayah pada tab Master Data.
   parameterList: [], // {id, nama} — diatur lewat tab Setting, sumber pilihan "Parameter
                      // Reaktif" (HBsAg/HIV/HCV/Sifilis, dst) pada tab 2 Input Kegiatan & Epidemiologi.
+  jenisDonorList: [],       // {id, nama} — diatur lewat tab Setting → Jenis Donor.
+  metodePengujianList: [],  // {id, nama} — diatur lewat tab Setting → Metode Pengujian.
   zonaList: [],      // {id, nama, warna} — diatur lewat tab Setting → Input Zona, sumber pilihan
                      // dropdown "Zona" pada tab 2 (Input Kegiatan) & filter "Jenis Zona" pada tab 3
                      // (Laporan). "warna" adalah kode hex, dipakai jg utk mewarnai pin peta,
@@ -30,7 +32,9 @@ let state = {
   nextKecamatanId: 1,
   nextParameterId: 1,
   nextZonaId: 1,
-  nextUserId: 1
+  nextUserId: 1,
+  nextJenisDonorId: 1,
+  nextMetodePengujianId: 1
 };
 
 // Palet pilihan warna utk form "Input Zona" (tab Setting) -- minimal 20 warna
