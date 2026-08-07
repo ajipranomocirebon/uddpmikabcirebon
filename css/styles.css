@@ -200,10 +200,31 @@
   .grid2{ display:grid; grid-template-columns:1.05fr 1.3fr; gap:18px; align-items:start; }
   @media (max-width:900px){ .grid2{ grid-template-columns:1fr; } }
 
+  /* Tab 1 Master Data: Daftar Lokasi Terdaftar dipindah ke posisi pertama
+     (kiri di desktop / atas di mobile), jadi butuh proporsi kolom yang
+     dibalik supaya panel tabel tetap yang lebih lebar seperti semula. */
+  #panel-master .grid2{ grid-template-columns:1.3fr 1.05fr; }
+
   .card{
     background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
     padding:20px 22px; box-shadow:var(--shadow);
   }
+  .card-relative{ position:relative; }
+
+  /* ---------- Kunci form Tambah Lokasi Baru sampai admin mencari dulu --
+     Lihat js/master-data.js (setMasterFormLocked). Overlay menutupi seluruh
+     kartu form supaya admin mencari nama tempat di Daftar Lokasi Terdaftar
+     terlebih dahulu, mencegah input data lokasi ganda. ------------------- */
+  .form-lock-overlay{
+    display:none; position:absolute; inset:0; z-index:5;
+    background:rgba(255,255,255,.92); border-radius:var(--radius);
+    align-items:center; justify-content:center; text-align:center; padding:26px;
+  }
+  .form-lock-overlay.show{ display:flex; }
+  .form-lock-box{ max-width:300px; }
+  .form-lock-ico{ font-size:26px; display:block; margin-bottom:10px; }
+  .form-lock-box p{ font-size:13px; color:var(--ink-soft); margin:0; line-height:1.55; }
+  .form-lock-box b{ color:var(--ink); }
   .card h3{ font-size:15px; margin:0 0 4px; }
   .card .hint{ font-size:12.5px; color:var(--ink-soft); margin:0 0 16px; }
   .setting-hint{ font-size:12.5px; color:var(--ink-soft); line-height:1.6; margin:0 0 12px; }
@@ -218,7 +239,7 @@
     padding:9px 11px; outline:none; transition:.12s;
   }
   input:focus, textarea:focus, select:focus{ border-color:var(--brand); background:#fff; box-shadow:0 0 0 3px var(--brand-soft); }
-  input[disabled]{ color:var(--ink-soft); background:#F1EFE9; }
+  input[disabled], textarea[disabled], select[disabled]{ color:var(--ink-soft); background:#F1EFE9; cursor:not-allowed; }
   textarea{ resize:vertical; min-height:56px; }
   .row2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
   .field-note{ font-size:11px; color:var(--ink-soft); margin-top:4px; }
@@ -519,6 +540,14 @@
   }
   .modal-bg.show{ display:flex; }
   .modal-box{ background:#fff; border-radius:14px; padding:22px 24px; max-width:340px; width:100%; box-shadow:var(--shadow); }
+  .modal-box-closable{ position:relative; }
+  .modal-close-btn{
+    position:absolute; top:10px; right:10px; width:28px; height:28px;
+    border:none; background:transparent; border-radius:50%;
+    font-size:20px; line-height:1; color:var(--ink-soft); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close-btn:hover{ background:#F1EEE6; color:var(--ink); }
   .modal-box-wide{ max-width:520px; text-align:left; }
   .modal-box h3{ margin:0 0 8px; font-size:15px; }
   .modal-box p{ font-size:13px; color:var(--ink-soft); margin:0 0 18px; }

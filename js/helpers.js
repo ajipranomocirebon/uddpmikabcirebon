@@ -32,6 +32,30 @@ function getMetodePengujianNamaList(){
 function escapeHtml(str){
   return String(str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
+
+/* ---------- Pencarian berbasis awalan per-kata (word-prefix match) -------
+   Dipakai di SELURUH pencarian data sendiri di aplikasi ini (Tab 1 Nama
+   Tempat & Daftar Lokasi Terdaftar, Tab 2 Cari Nama Tempat & Riwayat
+   Kegiatan, pencarian lokasi di peta, dropdown Kecamatan/Wilayah/Zona
+   Wilayah, dst) supaya pencarian mengikuti huruf demi huruf yang diketik
+   admin dari AWAL sebuah kata -- bukan sekadar cocok di sembarang posisi
+   teks. Case-insensitive (huruf besar/kecil dianggap sama), kata dipisah
+   spasi.
+   Contoh: mengetik "t" pada "Desa Tegalkarang" cocok krn kata kedua
+   ("Tegalkarang") diawali huruf "t"; mengetik "te" tetap cocok, "tegal"
+   tetap cocok, dst -- sampai admin memilih data yang dimaksud. Tapi
+   mengetik "esa" (ada di tengah kata "Desa") TIDAK cocok krn bukan
+   awalan kata. Kalau kata kunci pencarian terdiri lebih dari satu kata
+   (mis. "desa te"), SETIAP kata kunci harus punya kata yang cocok di
+   data (boleh kata yang berbeda-beda), supaya pencarian gabungan spt
+   "desa te" tetap menemukan "Desa Tegalkarang". ------------------------ */
+function wordPrefixMatch(haystack, query){
+  const qWords = String(query||'').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if(qWords.length === 0) return true;
+  const hWords = String(haystack||'').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return qWords.every(qw => hWords.some(hw => hw.startsWith(qw)));
+}
+
 function fmtDate(iso){
   if(!iso) return '—';
   const d = new Date(iso+'T00:00:00');
@@ -110,15 +134,22 @@ let confirmCallback = null;
 // okLabel opsional: teks tombol konfirmasi (default "Ya, Hapus" krn
 // awalnya fungsi ini cuma dipakai utk konfirmasi hapus data). Dipakai jg
 // utk pop-up konfirmasi lain spt "Kondisi Aman" di kegiatan.js yang
-// tombolnya perlu berbunyi "OK" (bukan "Ya, Hapus") krn bukan aksi hapus.
-function askConfirm(title, text, cb, okLabel){
+// tombolnya perlu berbunyi "OK" (bukan "Ya, Hapus") krn bukan aksi hapus,
+// dan "Iya" di master-data.js utk konfirmasi "data tidak ditemukan".
+// cancelLabel opsional juga (default "Batal") -- mis. dipakai jadi "Tidak"
+// pd konfirmasi "data tidak ditemukan" di master-data.js.
+function askConfirm(title, text, cb, okLabel, cancelLabel){
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalText').textContent = text;
   document.getElementById('modalOk').textContent = okLabel || 'Ya, Hapus';
+  document.getElementById('modalCancel').textContent = cancelLabel || 'Batal';
   document.getElementById('modalConfirm').classList.add('show');
   confirmCallback = cb;
 }
 document.getElementById('modalCancel').addEventListener('click', ()=>{
+  document.getElementById('modalConfirm').classList.remove('show'); confirmCallback=null;
+});
+document.getElementById('modalCloseBtn').addEventListener('click', ()=>{
   document.getElementById('modalConfirm').classList.remove('show'); confirmCallback=null;
 });
 document.getElementById('modalOk').addEventListener('click', ()=>{

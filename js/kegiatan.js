@@ -8,12 +8,57 @@ const formKegiatan = document.getElementById('formKegiatan');
 let epiRows = [];
 let epiSeq = 1;
 
-function renderTempatDatalist(){
-  document.getElementById('daftarTempat').innerHTML =
-    state.master.map(t=>`<option value="${escapeHtml(t.nama)}">`).join('');
+// Sebelumnya "Cari Nama Tempat" berupa input+<datalist> (tampil seperti
+// dropdown browser bawaan dgn ikon panah). Sekarang jadi field teks biasa
+// dengan pencarian langsung (custom autocomplete) -- pola sama seperti
+// "Nama Tempat" di Tab 1 (js/master-data.js: renderNamaSuggestions), agar
+// tidak lagi terlihat seperti dropdown tapi tetap bisa mencari data sambil
+// mengetik. renderTempatDatalist() jadi no-op krn tidak ada lagi elemen
+// <datalist> yang diisi -- dibiarkan ada (bukan dihapus) supaya pemanggil
+// lama di js/init.js & js/tabs.js tidak perlu diubah.
+function renderTempatDatalist(){ /* no-op: lihat renderKegiatanCariSuggestions() */ }
+
+function hideKegiatanCariSuggest(){
+  const box = document.getElementById('kegiatanCariSuggest');
+  if(!box) return;
+  box.classList.remove('show');
+  box.innerHTML = '';
 }
 
-document.getElementById('kegiatanCari').addEventListener('input', (e)=> selectTempatByName(e.target.value));
+function renderKegiatanCariSuggestions(){
+  const q = document.getElementById('kegiatanCari').value.trim().toLowerCase();
+  const box = document.getElementById('kegiatanCariSuggest');
+  if(q.length < 1){ hideKegiatanCariSuggest(); return; }
+
+  const matches = state.master.filter(t=> wordPrefixMatch(t.nama, q)).slice(0, 8);
+  if(matches.length===0){ hideKegiatanCariSuggest(); return; }
+
+  box.innerHTML = matches.map(t=>`
+    <div class="autocomplete-item" data-id="${t.id}">
+      <b>${escapeHtml(t.nama)}</b>
+      <span>${escapeHtml(t.kecamatan)}, ${escapeHtml(t.wilayah)}</span>
+    </div>`).join('');
+  box.classList.add('show');
+
+  box.querySelectorAll('.autocomplete-item').forEach(el=>{
+    el.addEventListener('mousedown', (e)=>{
+      e.preventDefault(); // cegah blur menutup dropdown sebelum klik terproses
+      const t = state.master.find(x=>x.id===parseInt(el.dataset.id));
+      if(t){
+        document.getElementById('kegiatanCari').value = t.nama;
+        selectTempatByName(t.nama);
+      }
+      hideKegiatanCariSuggest();
+    });
+  });
+}
+
+document.getElementById('kegiatanCari').addEventListener('input', (e)=>{
+  selectTempatByName(e.target.value); // tetap auto-cocokkan langsung kalau nama yg diketik sudah persis sama
+  renderKegiatanCariSuggestions();
+});
+document.getElementById('kegiatanCari').addEventListener('focus', renderKegiatanCariSuggestions);
+document.getElementById('kegiatanCari').addEventListener('blur', ()=> hideKegiatanCariSuggest());
 
 function selectTempatByName(nama){
   const t = state.master.find(x=>x.nama.toLowerCase()===nama.trim().toLowerCase());
@@ -191,6 +236,7 @@ function resetFormKegiatan(){
   document.getElementById('kegiatanId').value='';
   document.getElementById('kegiatanTempatId').value='';
   document.getElementById('placeCard').style.display='none';
+  hideKegiatanCariSuggest();
   document.getElementById('kegiatanFormTitle').textContent = 'Input Kegiatan Donor';
   epiRows = [];
   renderEpiRows();
@@ -358,14 +404,14 @@ const kegiatanTableState = { query: '', tanggalDari: '', tanggalSampai: '', page
 const KEGIATAN_PAGINATION_MIN = 10; // pagination baru aktif kalau total kegiatan >= 10
 
 function getFilteredKegiatanList(){
-  const q = kegiatanTableState.query.trim().toLowerCase();
+  const q = kegiatanTableState.query.trim();
   const dari = kegiatanTableState.tanggalDari;
   const sampai = kegiatanTableState.tanggalSampai;
   return state.kegiatan.filter(k=>{
     if(q){
       const t = state.master.find(x=>x.id===k.tempatId);
-      const nama = t ? t.nama.toLowerCase() : '';
-      if(!nama.includes(q)) return false;
+      const nama = t ? t.nama : '';
+      if(!wordPrefixMatch(nama, q)) return false;
     }
     if(dari && k.tanggal < dari) return false;
     if(sampai && k.tanggal > sampai) return false;

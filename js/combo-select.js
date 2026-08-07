@@ -68,8 +68,8 @@ function initComboSelect(selectId, opts){
     input.value = currentLabel();
   }
   function filteredOptions(q){
-    q = (q||'').trim().toLowerCase();
-    return !q ? options() : options().filter(o=>o.textContent.toLowerCase().includes(q));
+    q = (q||'').trim();
+    return !q ? options() : options().filter(o=>wordPrefixMatch(o.textContent, q));
   }
   function renderList(q){
     const items = filteredOptions(q);

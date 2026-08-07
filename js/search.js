@@ -18,12 +18,12 @@ let lastSearchQuery = '';
 
 // ---------- 1) Cari di data master yang sudah tersimpan di aplikasi ------
 function searchLocalMaster(query){
-  const q = query.trim().toLowerCase();
+  const q = query.trim();
   if(!q) return [];
   return state.master
     .filter(t=>{
-      const haystack = [t.nama, t.alamat, t.kecamatan, t.wilayah].filter(Boolean).join(' ').toLowerCase();
-      return haystack.includes(q);
+      const haystack = [t.nama, t.alamat, t.kecamatan, t.wilayah].filter(Boolean).join(' ');
+      return wordPrefixMatch(haystack, q);
     })
     .slice(0, 6)
     .map(t=>({

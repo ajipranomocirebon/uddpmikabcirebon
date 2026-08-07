@@ -17,6 +17,41 @@ function resetFormMaster(){
   syncComboDisplay('masterKecamatan');
   syncComboDisplay('masterWilayah');
   syncComboDisplay('masterZonaWilayah');
+  // Setiap kali form dikosongkan (batal, atau selesai simpan) form dikunci
+  // lagi -- admin wajib mencari dulu di Daftar Lokasi Terdaftar sebelum
+  // bisa menambah lokasi baru berikutnya. Lihat setMasterFormLocked().
+  setMasterFormLocked(true);
+}
+
+/* ---------- Kunci form "Tambah Lokasi Baru" sampai admin mencari dulu ----
+   Supaya tidak terjadi input lokasi ganda: form ini terkunci (semua field
+   & tombol dinonaktifkan + overlay ditampilkan) sampai admin melakukan
+   pencarian di panel "Daftar Lokasi Terdaftar" dan sistem memastikan
+   datanya memang belum ada (lihat scheduleMasterNoResultCheck di bawah).
+   Membuka data yang SUDAH ada lewat Edit/klik saran autocomplete tetap
+   langsung membuka form (unlock) krn itu bukan aksi tambah data baru. ---- */
+let masterFormUnlocked = false;
+
+function setMasterFormLocked(locked){
+  masterFormUnlocked = !locked;
+  const overlay = document.getElementById('masterFormLock');
+  if(overlay) overlay.classList.toggle('show', locked);
+  formMaster.querySelectorAll('input, textarea, select, button').forEach(el=>{
+    el.disabled = locked;
+  });
+  if(locked) masterLastAskedQuery = null; // siklus pencarian baru boleh menawarkan modal lagi
+}
+
+// Dipanggil setelah admin klik "Iya" pada modal "data tidak ditemukan".
+// prefillNama: kata kunci pencarian yang tadi diketik, supaya langsung
+// terisi di kolom Nama Tempat dan admin tidak perlu mengetik ulang.
+function unlockMasterFormForNewEntry(prefillNama){
+  resetFormMaster();
+  setMasterFormLocked(false);
+  if(prefillNama){
+    document.getElementById('masterNama').value = prefillNama;
+  }
+  document.getElementById('masterNama').focus();
 }
 
 /* ---------- Validasi format input ---------- */
@@ -106,7 +141,7 @@ function renderNamaSuggestions(){
   const box = document.getElementById('masterNamaSuggest');
   if(q.length < 1){ hideAutocomplete('masterNamaSuggest'); return; }
 
-  const matches = state.master.filter(t=> t.nama.toLowerCase().includes(q)).slice(0, 6);
+  const matches = state.master.filter(t=> wordPrefixMatch(t.nama, q)).slice(0, 6);
   if(matches.length===0){ hideAutocomplete('masterNamaSuggest'); return; }
 
   box.innerHTML =
@@ -195,6 +230,7 @@ document.getElementById('btnBatalMaster').addEventListener('click', resetFormMas
 function editMaster(id){
   const t = state.master.find(x=>x.id===id);
   if(!t) return;
+  setMasterFormLocked(false); // membuka data yang sudah ada utk diubah -- bukan tambah baru, jadi langsung dibuka
   document.getElementById('masterId').value = t.id;
   document.getElementById('masterNama').value = t.nama;
   document.getElementById('masterAlamat').value = t.alamat||'';
@@ -241,12 +277,12 @@ const masterTableState = { query: '', page: 1, pageSize: 10 };
 const MASTER_PAGINATION_MIN = 10; // pagination baru aktif kalau total lokasi >= 10
 
 function getFilteredMasterList(){
-  const q = masterTableState.query.trim().toLowerCase();
+  const q = masterTableState.query.trim();
   if(!q) return state.master;
   return state.master.filter(t=>{
     const haystack = [t.nama, t.alamat, t.kecamatan, t.wilayah, t.zonaWilayah, t.pic]
-      .filter(Boolean).join(' ').toLowerCase();
-    return haystack.includes(q);
+      .filter(Boolean).join(' ');
+    return wordPrefixMatch(haystack, q);
   });
 }
 
@@ -357,19 +393,83 @@ document.getElementById('btnMasterNext').addEventListener('click', ()=>{
 const masterTableSearchInput = document.getElementById('masterTableSearch');
 const btnMasterTableSearchClear = document.getElementById('btnMasterTableSearchClear');
 
+/* ---------- Modal "data tidak ditemukan" -> tawarkan buka form tambah ---
+   Begitu admin berhenti mengetik (debounce) di kolom pencarian Daftar
+   Lokasi Terdaftar dan hasilnya kosong, tampilkan modal konfirmasi di
+   tengah layar: "Apakah data yang Anda cari tidak ada?". Kalau admin klik
+   "Iya", form Tambah Lokasi Baru dibuka (unlock) dgn nama tempat sudah
+   terisi dari kata kunci pencarian tsb. -------------------------------- */
+const MASTER_SEARCH_MIN_LEN = 2; // kata kunci terlalu pendek -> jangan buru-buru tanya
+const MASTER_SEARCH_DEBOUNCE_MS = 700; // jeda tunggu setelah admin berhenti mengetik
+let masterSearchDebounceTimer = null;
+let masterLastAskedQuery = null; // query yg sudah pernah ditawarkan, supaya tidak tanya berulang
+
+// forceReask: true kalau dipicu manual (tombol Enter) -- pengecekan
+// langsung jalan tanpa menunggu debounce, dan modal tetap ditampilkan
+// walau query yang sama pernah ditanyakan sebelumnya, karena menekan
+// Enter dianggap permintaan eksplisit dari admin/user untuk mengecek lagi.
+function checkMasterNoResult(forceReask){
+  if(masterFormUnlocked) return; // form sudah aktif -- tidak perlu ditawarkan lagi
+  const currentQ = masterTableState.query.trim();
+  if(currentQ.length < MASTER_SEARCH_MIN_LEN) return;
+  if(!forceReask && currentQ.toLowerCase() === masterLastAskedQuery) return; // sudah pernah ditawarkan utk query ini
+
+  if(getFilteredMasterList().length === 0){
+    masterLastAskedQuery = currentQ.toLowerCase();
+    askConfirm(
+      'Data tidak ditemukan',
+      `Apakah data yang Anda cari tidak ketemu? Tidak ditemukan lokasi untuk kata kunci "${currentQ}" di Daftar Lokasi Terdaftar.`,
+      ()=> unlockMasterFormForNewEntry(currentQ),
+      'Iya', 'Tidak'
+    );
+  }
+}
+
+function scheduleMasterNoResultCheck(){
+  clearTimeout(masterSearchDebounceTimer);
+  if(masterFormUnlocked) return;
+  const q = masterTableState.query.trim();
+  if(q.length < MASTER_SEARCH_MIN_LEN) return;
+
+  masterSearchDebounceTimer = setTimeout(()=>{
+    // kalau query sudah berubah lagi sejak timer dipasang, biarkan timer
+    // yang lebih baru (dari keystroke berikutnya) yang menentukan
+    if(masterTableState.query.trim().toLowerCase() !== q.toLowerCase()) return;
+    checkMasterNoResult(false);
+  }, MASTER_SEARCH_DEBOUNCE_MS);
+}
+
 masterTableSearchInput.addEventListener('input', ()=>{
   masterTableState.query = masterTableSearchInput.value;
   masterTableState.page = 1;
   btnMasterTableSearchClear.classList.toggle('show', !!masterTableSearchInput.value);
   renderMasterTable();
+  scheduleMasterNoResultCheck();
+});
+
+// Tekan Enter -> langsung cek saat itu juga, tidak perlu menunggu jeda
+// debounce, dan tetap tampil walau kata kunci ini pernah ditanyakan
+// sebelumnya (Enter = permintaan eksplisit utk mengecek ulang).
+masterTableSearchInput.addEventListener('keydown', (e)=>{
+  if(e.key !== 'Enter') return;
+  e.preventDefault();
+  clearTimeout(masterSearchDebounceTimer);
+  checkMasterNoResult(true);
 });
 
 btnMasterTableSearchClear.addEventListener('click', ()=>{
+  clearTimeout(masterSearchDebounceTimer);
   masterTableSearchInput.value = '';
   masterTableState.query = '';
   masterTableState.page = 1;
+  masterLastAskedQuery = null;
   btnMasterTableSearchClear.classList.remove('show');
   renderMasterTable();
   masterTableSearchInput.focus();
 });
+
+// Kunci form Tambah Lokasi Baru sejak awal load tab ini -- admin wajib
+// mencari dulu (lihat scheduleMasterNoResultCheck di atas) sebelum form
+// aktif diisi.
+setMasterFormLocked(true);
 

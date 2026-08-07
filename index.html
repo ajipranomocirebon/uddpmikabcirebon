@@ -169,6 +169,34 @@
   <section class="panel active" id="panel-master">
     <div class="grid2">
       <div class="card">
+        <h3>Daftar Lokasi Terdaftar</h3>
+        <p class="hint">Cari nama tempat di sini terlebih dahulu sebelum menambah lokasi baru, supaya data tidak terinput dua kali. Klik Edit untuk mengubah data, atau Hapus untuk menghapus lokasi.</p>
+
+        <div class="table-search">
+          <span class="table-search-ico">🔍</span>
+          <input type="text" id="masterTableSearch" placeholder="Cari nama tempat, alamat, kecamatan, wilayah, atau PIC…" autocomplete="off" />
+          <button type="button" class="table-search-clear" id="btnMasterTableSearchClear" title="Bersihkan pencarian">✕</button>
+        </div>
+
+        <div class="table-wrap table-wrap-flat">
+          <table>
+            <thead><tr>
+              <th>ID</th><th>Nama Tempat</th><th>Alamat Lengkap</th><th>Wilayah</th><th>Kecamatan</th><th>PIC</th><th></th>
+            </tr></thead>
+            <tbody id="tblMaster"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination" id="masterPagination">
+          <span class="pagination-label" id="masterTableMeta"></span>
+          <div class="pagination-nav">
+            <button type="button" class="page-nav-btn" id="btnMasterPrev">‹ Prev</button>
+            <button type="button" class="page-nav-btn" id="btnMasterNext">Next ›</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card card-relative">
         <h3 id="masterFormTitle">Tambah Lokasi Baru</h3>
         <p class="hint">Titik koordinat terisi otomatis begitu Nama Tempat, Kecamatan, dan Wilayah lengkap.</p>
         <div class="toast" id="masterToast"></div>
@@ -238,32 +266,11 @@
             <button type="button" class="btn btn-ghost" id="btnBatalMaster">Batal</button>
           </div>
         </form>
-      </div>
 
-      <div class="card">
-        <h3>Daftar Lokasi Terdaftar</h3>
-        <p class="hint">Klik Edit untuk mengubah data, atau Hapus untuk menghapus lokasi.</p>
-
-        <div class="table-search">
-          <span class="table-search-ico">🔍</span>
-          <input type="text" id="masterTableSearch" placeholder="Cari nama tempat, alamat, kecamatan, wilayah, atau PIC…" autocomplete="off" />
-          <button type="button" class="table-search-clear" id="btnMasterTableSearchClear" title="Bersihkan pencarian">✕</button>
-        </div>
-
-        <div class="table-wrap table-wrap-flat">
-          <table>
-            <thead><tr>
-              <th>ID</th><th>Nama Tempat</th><th>Alamat Lengkap</th><th>Wilayah</th><th>Kecamatan</th><th>PIC</th><th></th>
-            </tr></thead>
-            <tbody id="tblMaster"></tbody>
-          </table>
-        </div>
-
-        <div class="pagination" id="masterPagination">
-          <span class="pagination-label" id="masterTableMeta"></span>
-          <div class="pagination-nav">
-            <button type="button" class="page-nav-btn" id="btnMasterPrev">‹ Prev</button>
-            <button type="button" class="page-nav-btn" id="btnMasterNext">Next ›</button>
+        <div class="form-lock-overlay" id="masterFormLock">
+          <div class="form-lock-box">
+            <span class="form-lock-ico">🔒</span>
+            <p><b>Form Tambah Lokasi Baru terkunci.</b><br />Cari dulu nama tempatnya di panel <b>Daftar Lokasi Terdaftar</b>. Kalau datanya tidak ditemukan, sistem akan menawarkan untuk mengaktifkan form ini.</p>
           </div>
         </div>
       </div>
@@ -283,8 +290,10 @@
           <input type="hidden" id="kegiatanTempatId" />
 
           <label>Cari Nama Tempat <span class="req">*</span></label>
-          <input type="text" id="kegiatanCari" list="daftarTempat" placeholder="Ketik nama lokasi terdaftar…" autocomplete="off" required />
-          <datalist id="daftarTempat"></datalist>
+          <div class="field-autocomplete">
+            <input type="text" id="kegiatanCari" placeholder="Ketik nama lokasi terdaftar…" autocomplete="off" required />
+            <div class="autocomplete-list" id="kegiatanCariSuggest"></div>
+          </div>
           <div class="place-card" id="placeCard" style="display:none;"></div>
 
           <label>Tanggal Kegiatan <span class="req">*</span></label>
@@ -818,7 +827,8 @@
 </div>
 
 <div class="modal-bg" id="modalConfirm">
-  <div class="modal-box">
+  <div class="modal-box modal-box-closable">
+    <button type="button" class="modal-close-btn" id="modalCloseBtn" title="Tutup" aria-label="Tutup">&times;</button>
     <h3 id="modalTitle">Hapus data?</h3>
     <p id="modalText">Tindakan ini tidak dapat dibatalkan.</p>
     <div class="modal-actions">

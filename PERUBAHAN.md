@@ -2,6 +2,56 @@
 
 # Perubahan PetaDonor — Revisi Penyimpanan & Pencarian Kategori
 
+## 28. Seluruh pencarian data sendiri diubah jadi "awalan per-kata" (word-prefix)
+- Sebelumnya pencarian (Nama Tempat Tab 1 & 2, Daftar Lokasi Terdaftar,
+  Riwayat Kegiatan, pencarian lokasi di peta, dropdown Kecamatan/Wilayah/
+  Zona Wilayah) mencocokkan kata kunci di SEMBARANG posisi teks (substring).
+  Sekarang diganti jadi cocok berdasarkan **awalan tiap kata** (word-prefix
+  match, huruf besar/kecil dianggap sama) -- fungsi baru bersama
+  `wordPrefixMatch()` di `js/helpers.js`.
+- Contoh: mencari "Desa Tegalkarang" -- ketik huruf **"T"** langsung
+  memunculkan data yang salah satu katanya diawali huruf T (mis.
+  "Tegalkarang"); ketik lagi jadi **"Te"** hasil makin menyempit ke yang
+  diawali "Te"; begitu seterusnya huruf demi huruf sampai admin memilih
+  data yang dimaksud. Kata kunci pencarian yg terdiri dari beberapa kata
+  (mis. "desa te") tetap didukung -- tiap kata kunci dicocokkan ke kata
+  manapun pada data yang diawalinya.
+- Pencarian eksternal (Nominatim/Photon di kotak cari lokasi pada peta)
+  TIDAK diubah -- perubahan ini hanya berlaku utk pencarian di data sendiri
+  (state.master/state.kegiatan/opsi dropdown), krn layanan eksternal
+  punya mesin pencariannya sendiri di luar kendali aplikasi ini.
+
+## 27. Tab 2 — field "Cari Nama Tempat" bukan lagi dropdown, jadi field pencarian biasa
+- Sebelumnya field ini pakai `<input list>` + `<datalist>` bawaan browser,
+  yang tampilannya menyerupai dropdown (ada ikon panah di kanan field).
+  Sekarang diganti jadi field teks biasa dengan pencarian langsung (custom
+  autocomplete) -- pola sama seperti "Nama Tempat" di Tab 1: sambil
+  mengetik, muncul daftar saran nama lokasi terdaftar yg cocok tepat di
+  bawah field (bukan dropdown bawaan browser). Klik salah satu saran akan
+  mengisi field & memuat kartu info lokasinya (kecamatan/wilayah/PIC)
+  persis seperti sebelumnya.
+
+## 26. Tab 1 (Master Data) — posisi panel ditukar + form Tambah Lokasi wajib cari dulu
+- **Posisi panel ditukar**: "Daftar Lokasi Terdaftar" sekarang di posisi
+  pertama (kiri di desktop / atas di layar sempit), "Tambah Lokasi Baru"
+  di posisi kedua (kanan/bawah) -- kebalikan dari sebelumnya.
+- **Cegah data ganda — form Tambah Lokasi Baru terkunci by default**: form
+  ini (semua kolom & tombol Simpan/Batal) nonaktif dan tertutup overlay
+  🔒 sampai admin lebih dulu mencari nama tempatnya di kolom pencarian
+  panel "Daftar Lokasi Terdaftar".
+  - Kalau admin berhenti mengetik dan ternyata **tidak ada hasil**, muncul
+    pop-up konfirmasi di tengah layar: **"Apakah data yang Anda cari
+    tidak ada?"**. Klik **"Iya"** akan membuka (unlock) form Tambah Lokasi
+    Baru dengan kolom Nama Tempat langsung terisi dari kata kunci
+    pencarian tadi. Klik **"Tidak"** menutup pop-up & form tetap terkunci.
+  - Kalau pencarian justru **menemukan data**, form tetap terkunci --
+    admin diarahkan pakai tombol **Edit** di tabel, bukan menambah baru.
+  - Membuka data yang sudah ada lewat tombol **Edit** (atau klik saran
+    autocomplete di kolom Nama Tempat) tetap langsung membuka form seperti
+    biasa, karena itu bukan aksi tambah data baru.
+  - Form otomatis terkunci lagi setiap kali selesai Simpan atau klik
+    Batal, supaya siklus cari-dulu berlaku lagi utk entri berikutnya.
+
 ## 25. Login/Registrasi wajib tiap buka aplikasi + Tab 6 "Administrator"
 - **Layar Login/Registrasi**: setiap kali aplikasi ini aktif/mulai dibuka,
   layar Login menimpa (overlay) seluruh tampilan lebih dulu -- tidak ada
