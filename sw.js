@@ -1,4 +1,4 @@
-const CACHE_NAME = 'petadonor-cache-v11';
+const CACHE_NAME = 'petadonor-cache-v12';
 const ASSETS = [
   './index.html', './manifest.json', './icon-192.png', './icon-512.png',
   './css/styles.css',
