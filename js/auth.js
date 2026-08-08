@@ -14,8 +14,10 @@
      + salt acak per akun, lihat hashPassword() di js/helpers.js) sebelum
      disimpan ke state/Supabase atau dibandingkan saat login.
    - User 1: Tab 1 (Master Data), Tab 2 (Input Kegiatan & Epidemiologi),
-     Tab 3 (Laporan Epidemiologi) + peta. Tab 4/5/6 terkunci.
-   - User 2: HANYA Tab 3 (Laporan Epidemiologi) + peta. Tab 1/2/4/5/6 terkunci.
+     Tab 3 (Laporan Epidemiologi) + peta. Tab 4/5/6 disembunyikan total
+     (tidak muncul di daftar tab sama sekali).
+   - User 2: HANYA Tab 3 (Laporan Epidemiologi) + peta. Tab 1/2/4/5/6
+     disembunyikan total (tidak muncul di daftar tab sama sekali).
    - Registrasi mandiri (dari layar login) selalu membuat akun dengan level
      "User 2" (paling terbatas) secara default -- Administrator yang lalu
      menaikkan levelnya ke "User 1" lewat Tab 6 kalau memang perlu.
@@ -36,14 +38,15 @@ function canAccessTab(tab){
   return false;
 }
 
-// Aktifkan/kunci tombol tab sesuai hak akses user yang sedang login --
-// tab yang tidak boleh diakses jadi <button disabled> (tidak bisa diklik/
-// fokus keyboard sama sekali), bukan cuma disamarkan lewat CSS saja.
+// Tampilkan/sembunyikan tombol tab sesuai hak akses user yang sedang
+// login -- tab yang tidak boleh diakses BENAR-BENAR dihilangkan dari
+// tampilan (bukan cuma di-disable), supaya User 1/User 2 tidak bisa
+// melihat menu apa saja yang ada di Tab 4/5/6 sama sekali.
 function applyTabAccess(){
   document.querySelectorAll('.tab-btn').forEach(btn=>{
     const ok = canAccessTab(btn.dataset.tab);
     btn.disabled = !ok;
-    btn.classList.toggle('tab-locked', !ok);
+    btn.classList.toggle('tab-hidden', !ok);
   });
   const userBox = document.getElementById('topbarUser');
   if(userBox && currentUser){

@@ -55,7 +55,11 @@
     font-size:20px; margin:0; line-height:1.15; font-weight:700; letter-spacing:-.01em;
   }
   .brand h1 span{ color:var(--brand); }
-  .brand p{ margin:2px 0 0; font-size:13px; color:var(--ink-soft); }
+  .brand-tagline{
+    margin:3px 0 0; font-size:11px; font-weight:700; line-height:1;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--brand);
+  }
+  .brand p{ margin:4px 0 0; font-size:13px; color:var(--ink-soft); }
 
   .topbar-stats{ display:flex; gap:10px; flex-wrap:wrap; }
   .stat-chip{
@@ -72,6 +76,9 @@
     position:relative; border-radius:20px; overflow:hidden;
     box-shadow:var(--shadow); border:1px solid var(--line);
   }
+  /* Disembunyikan pada tab yang murni pengaturan (Data & Cadangan,
+     Setting, Administrator) -- lihat TABS_TANPA_PETA di js/tabs.js */
+  .map-wrap.hidden{ display:none; }
   #map{ height:440px; width:100%; background:#dfe7ea; }
   .legend{
     position:absolute; top:14px; right:14px; z-index:500;
@@ -592,13 +599,11 @@
   .topbar-user{ display:flex; align-items:center; gap:10px; }
   .topbar-user-name{ font-size:12.5px; font-weight:600; color:var(--ink); }
 
-  /* Tab yang terkunci utk level user yang sedang login (lihat js/auth.js
-     applyTabAccess()) -- tombolnya di-disable (bukan cuma disamarkan)
-     supaya benar-benar tidak bisa diklik/difokus. */
-  .tab-btn:disabled, .tab-btn.tab-locked{
-    opacity:.45; cursor:not-allowed; background:var(--card); color:var(--ink-soft);
-  }
-  .tab-btn:disabled:hover{ border-color:var(--line); color:var(--ink-soft); }
+  /* Tab yang tidak boleh diakses utk level user yang sedang login (lihat
+     js/auth.js applyTabAccess()) -- benar-benar dihilangkan dari tampilan
+     (bukan cuma disamarkan/di-disable) supaya User 1/User 2 tidak tahu
+     menu apa saja yang sebenarnya ada di aplikasi ini. */
+  .tab-btn.tab-hidden{ display:none !important; }
 
   /* ===== Layar Login / Registrasi ===== */
   .auth-overlay{
@@ -615,7 +620,11 @@
   .auth-brand{ display:flex; align-items:center; gap:12px; margin-bottom:18px; }
   .auth-brand h1{ font-size:18px; margin:0; line-height:1.15; font-weight:700; letter-spacing:-.01em; }
   .auth-brand h1 span{ color:var(--brand); }
-  .auth-brand p{ margin:2px 0 0; font-size:12px; color:var(--ink-soft); }
+  .auth-brand .brand-tagline{
+    margin:3px 0 0; font-size:10px; font-weight:700; line-height:1;
+    letter-spacing:.15em; text-transform:uppercase; color:var(--brand);
+  }
+  .auth-brand p{ margin:4px 0 0; font-size:12px; color:var(--ink-soft); }
   .auth-form h3{ font-size:15px; margin:0 0 4px; }
   .auth-submit{ width:100%; }
   .auth-switch{ text-align:center; font-size:12.5px; color:var(--ink-soft); margin:16px 0 0; }
@@ -629,6 +638,7 @@
     .app{ padding:0 14px 90px; } /* ruang untuk tab bar bawah */
     .topbar{ padding:16px 0 12px; gap:12px; }
     .brand h1{ font-size:17px; }
+    .brand-tagline{ font-size:10px; }
     .brand p{ font-size:11.5px; }
     .topbar-stats{ width:100%; }
     .topbar-right{ width:100%; align-items:stretch; }

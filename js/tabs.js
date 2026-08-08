@@ -1,6 +1,10 @@
 /* ===================================================================
    TABS
 =================================================================== */
+// Tab-tab yang murni untuk pengaturan/administrasi -- tidak butuh peta,
+// jadi peta bagian atas disembunyikan saat salah satu tab ini aktif.
+const TABS_TANPA_PETA = ['data','setting','administrator'];
+
 function switchTab(name){
   // Pertahanan tambahan di luar tombol tab yang sudah di-disable (lihat
   // applyTabAccess() di js/auth.js) -- pastikan tab yang tidak sesuai hak
@@ -9,9 +13,16 @@ function switchTab(name){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
   if(name==='kegiatan') renderTempatDatalist();
-  // Peta bagian atas dipakai bersama semua tab. Selain di tab Laporan
-  // (di mana peta difilter sesuai periode/wilayah begitu tombol
-  // "Tampilkan Laporan" diklik), tampilkan selalu SEMUA lokasi dgn
+
+  const mapWrap = document.getElementById('mapWrap');
+  const tampilkanPeta = !TABS_TANPA_PETA.includes(name);
+  if(mapWrap) mapWrap.classList.toggle('hidden', !tampilkanPeta);
+
+  if(!tampilkanPeta) return; // Tab setting/administrasi tidak butuh peta.
+
+  // Peta bagian atas dipakai bersama semua tab yang menampilkannya. Selain
+  // di tab Laporan (di mana peta difilter sesuai periode/wilayah begitu
+  // tombol "Tampilkan Laporan" diklik), tampilkan selalu SEMUA lokasi dgn
   // zona terbaru keseluruhan -- termasuk saat baru masuk tab Laporan,
   // sebelum user memilih periode & klik tombolnya.
   if(name!=='laporan'){
