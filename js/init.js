@@ -43,7 +43,19 @@ document.getElementById('btnLegendToggle').addEventListener('click', ()=>{
 
 if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline cache opsional, abaikan jika gagal */ });
+    navigator.serviceWorker.register('sw.js').then((reg)=>{
+      // Jika ada service worker baru terdeteksi (CACHE_NAME di sw.js berubah),
+      // begitu selesai install & siap aktif, langsung reload halaman
+      // supaya user tidak perlu tutup-buka app / clear cache manual.
+      reg.addEventListener('updatefound', ()=>{
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', ()=>{
+          if(newWorker.state === 'installed' && navigator.serviceWorker.controller){
+            window.location.reload();
+          }
+        });
+      });
+    }).catch(()=>{ /* offline cache opsional, abaikan jika gagal */ });
   });
 }
 
