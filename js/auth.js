@@ -6,9 +6,13 @@
      "diingat" otomatis antar sesi buka-aplikasi (sesuai permintaan: login
      wajib tiap program mulai dibuka).
    - Administrator: HANYA SATU, kredensial tetap (ADMIN_USERNAME/
-     ADMIN_PASSWORD di js/state.js), tidak tersimpan di state.userList,
+     ADMIN_PASSWORD_HASH di js/state.js), tidak tersimpan di state.userList,
      dan tidak bisa didaftarkan ulang oleh siapa pun. Administrator bisa
      mengakses SEMUA tab.
+   - Password (Administrator maupun User 1/2) TIDAK PERNAH disimpan/
+     dibandingkan dalam bentuk polos -- selalu di-hash dulu (PBKDF2-SHA256
+     + salt acak per akun, lihat hashPassword() di js/helpers.js) sebelum
+     disimpan ke state/Supabase atau dibandingkan saat login.
    - User 1: Tab 1 (Master Data), Tab 2 (Input Kegiatan & Epidemiologi),
      Tab 3 (Laporan Epidemiologi) + peta. Tab 4/5/6 terkunci.
    - User 2: HANYA Tab 3 (Laporan Epidemiologi) + peta. Tab 1/2/4/5/6 terkunci.
@@ -69,31 +73,61 @@ function logout(){
 
 /* ---------- Form Login ---------- */
 const formLogin = document.getElementById('formLogin');
-formLogin.addEventListener('submit', (e)=>{
+formLogin.addEventListener('submit', async (e)=>{
   e.preventDefault();
   const u = document.getElementById('loginUsername').value.trim();
   const p = document.getElementById('loginPassword').value;
   if(!u || !p){ showToast('authToast','Username dan Password wajib diisi.','err'); return; }
 
-  if(u.toLowerCase()===ADMIN_USERNAME.toLowerCase()){
-    if(p===ADMIN_PASSWORD){
-      currentUser = {role:'admin', nama:'Administrator', username:ADMIN_USERNAME};
-      formLogin.reset();
-      completeLogin();
-    }else{
-      showToast('authToast','Password Administrator salah.','err');
+  const btnLogin = formLogin.querySelector('button[type="submit"]');
+  if(btnLogin) btnLogin.disabled = true;
+  try{
+    if(u.toLowerCase()===ADMIN_USERNAME.toLowerCase()){
+      const hashInput = await hashPassword(p, ADMIN_SALT);
+      if(hashInput===ADMIN_PASSWORD_HASH){
+        currentUser = {role:'admin', nama:'Administrator', username:ADMIN_USERNAME};
+        formLogin.reset();
+        completeLogin();
+      }else{
+        showToast('authToast','Password Administrator salah.','err');
+      }
+      return;
     }
-    return;
-  }
 
-  const found = state.userList.find(x=>x.username.toLowerCase()===u.toLowerCase() && x.password===p);
-  if(!found){
-    showToast('authToast','Username atau Password salah, atau akun belum terdaftar.','err');
-    return;
+    const found = state.userList.find(x=>x.username.toLowerCase()===u.toLowerCase());
+    if(!found){
+      showToast('authToast','Username atau Password salah, atau akun belum terdaftar.','err');
+      return;
+    }
+
+    // Migrasi otomatis akun lama (dari sebelum perbaikan keamanan ini) yang
+    // masih menyimpan password polos di field `password` -- begitu ketemu &
+    // cocok saat login, langsung diubah diam-diam jadi passwordHash+salt lalu
+    // disimpan ulang, field `password` polosnya dihapus permanen.
+    let match = false;
+    if(found.passwordHash && found.salt){
+      match = (await hashPassword(p, found.salt)) === found.passwordHash;
+    }else if(found.password!==undefined){
+      match = found.password===p;
+      if(match){
+        const salt = genSaltHex();
+        found.passwordHash = await hashPassword(p, salt);
+        found.salt = salt;
+        delete found.password;
+        await persistUserList();
+      }
+    }
+
+    if(!match){
+      showToast('authToast','Username atau Password salah, atau akun belum terdaftar.','err');
+      return;
+    }
+    currentUser = {role:'user', id:found.id, nama:found.nama, username:found.username, level:found.level};
+    formLogin.reset();
+    completeLogin();
+  } finally {
+    if(btnLogin) btnLogin.disabled = false;
   }
-  currentUser = {role:'user', id:found.id, nama:found.nama, username:found.username, level:found.level};
-  formLogin.reset();
-  completeLogin();
 });
 
 /* ---------- Form Registrasi (mandiri, dari layar login) ---------- */
@@ -131,7 +165,11 @@ formRegister.addEventListener('submit', async (e)=>{
   // ID User: auto-increment, primary key -- terisi otomatis (tersembunyi dari
   // user yang mendaftar), sesuai poin 4. Level default "User 2" (paling
   // terbatas) -- Administrator bisa menaikkan ke "User 1" lewat Tab 6 kalau perlu.
-  const newUser = {id: state.nextUserId++, nama, username, password: pass1, level:'user2'};
+  // Password TIDAK disimpan polos -- diubah dulu jadi hash+salt (lihat
+  // js/helpers.js) sebelum masuk ke state/Supabase.
+  const salt = genSaltHex();
+  const passwordHash = await hashPassword(pass1, salt);
+  const newUser = {id: state.nextUserId++, nama, username, passwordHash, salt, level:'user2'};
   state.userList.push(newUser);
   await persistUserList();
   renderUserTable();
@@ -203,7 +241,13 @@ formUser.addEventListener('submit', async (e)=>{
     const idx = state.userList.findIndex(x=>x.id===parseInt(idField));
     if(idx>-1){
       const old = state.userList[idx];
-      state.userList[idx] = {...old, nama, username, level, password: password ? password : old.password};
+      let passwordHash = old.passwordHash, salt = old.salt;
+      if(password){
+        // Admin mengganti password user ini -- buat hash+salt baru.
+        salt = genSaltHex();
+        passwordHash = await hashPassword(password, salt);
+      }
+      state.userList[idx] = {id:old.id, nama, username, level, passwordHash, salt};
       // Kalau user yang sedang login (di sesi ini) adalah user yang baru
       // diubah datanya oleh Administrator, sinkronkan juga label di topbar.
       if(currentUser && currentUser.role==='user' && currentUser.id===old.id){
@@ -213,7 +257,9 @@ formUser.addEventListener('submit', async (e)=>{
     }
     showToast('userToast','Perubahan data user berhasil disimpan.','ok');
   }else{
-    state.userList.push({id: state.nextUserId++, nama, username, password, level});
+    const salt = genSaltHex();
+    const passwordHash = await hashPassword(password, salt);
+    state.userList.push({id: state.nextUserId++, nama, username, passwordHash, salt, level});
     showToast('userToast','User baru berhasil ditambahkan.','ok');
   }
 
@@ -263,7 +309,7 @@ function renderUserTable(){
       <td class="mono">${u.id}</td>
       <td><b>${escapeHtml(u.nama)}</b></td>
       <td>${escapeHtml(u.username)}</td>
-      <td class="mono">${escapeHtml(u.password)}</td>
+      <td class="mono" title="Password tidak ditampilkan demi keamanan -- pakai tombol Edit utk mengganti">●●●●●●●●</td>
       <td><span class="badge netral">${u.level==='user1' ? 'User 1' : 'User 2'}</span></td>
       <td style="white-space:nowrap;">
         <button class="icon-btn" onclick="editUser(${u.id})">✏️ Edit</button>

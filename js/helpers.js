@@ -1,6 +1,34 @@
 /* ===================================================================
    HELPERS
 =================================================================== */
+
+/* ---------- Hashing password (PBKDF2-SHA256 via Web Crypto API) ----------
+   Password TIDAK PERNAH disimpan/dikirim ke Supabase dalam bentuk polos.
+   Setiap password diubah dulu jadi hash + salt acak sebelum disimpan, dan
+   saat login, password yang diketik di-hash ulang pakai salt yang sama lalu
+   dibandingkan hasil hash-nya (bukan membandingkan teks aslinya).
+   100.000 iterasi = standar wajar OWASP 2024 utk PBKDF2-SHA256, cukup berat
+   utk mempersulit brute-force tapi tetap instan dirasakan user saat login. */
+function bufToHex(buf){
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function hexToBuf(hex){
+  const arr = new Uint8Array(hex.length/2);
+  for(let i=0;i<arr.length;i++) arr[i] = parseInt(hex.substr(i*2,2),16);
+  return arr;
+}
+function genSaltHex(){
+  return bufToHex(crypto.getRandomValues(new Uint8Array(16)));
+}
+async function hashPassword(password, saltHex){
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), {name:'PBKDF2'}, false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    {name:'PBKDF2', salt: hexToBuf(saltHex), iterations: 100000, hash:'SHA-256'},
+    keyMaterial, 256
+  );
+  return bufToHex(bits);
+}
 // Daftar parameter skrining reaktif -- dipakai bersama oleh Tab 2 (Input
 // Kegiatan) & Tab 3 (Laporan). Sebelumnya berupa daftar tetap (hardcode),
 // sekarang diambil dari data Parameter yang diatur admin lewat tab 5

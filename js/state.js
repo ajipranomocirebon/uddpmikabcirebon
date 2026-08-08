@@ -22,11 +22,12 @@ let state = {
                      // warna dipakai konsisten di semua tempat (bukan warna tetap/hardcode lagi),
                      // dan admin bisa menambah zona baru dgn warna berbeda kapan saja tanpa
                      // mengubah kode aplikasi.
-  userList: [],      // {id, nama, username, password, level} — akun User 1/User 2 yang
-                     // didaftarkan sendiri lewat form Registrasi di layar login, dan
+  userList: [],      // {id, nama, username, passwordHash, salt, level} — akun User 1/User 2
+                     // yang didaftarkan sendiri lewat form Registrasi di layar login, dan
                      // dikelola (level akses, ubah, hapus) oleh Administrator lewat Tab 6.
-                     // Akun Administrator TIDAK disimpan di sini (lihat ADMIN_USERNAME/
-                     // ADMIN_PASSWORD pada js/auth.js) karena bersifat tetap & tunggal.
+                     // passwordHash+salt (BUKAN password polos lagi) -- lihat hashPassword()
+                     // di js/helpers.js. Akun Administrator TIDAK disimpan di sini (lihat
+                     // ADMIN_USERNAME/ADMIN_PASSWORD_HASH di atas) karena bersifat tetap & tunggal.
   nextMasterId: 1,
   nextKegiatanId: 1,
   nextKecamatanId: 1,
@@ -159,8 +160,16 @@ let activeSearchCategory = 'semua';
 // Username ini juga dicadangkan (tidak boleh dipakai) saat user mendaftar
 // akun baru lewat form Registrasi di layar login, supaya tidak ada akun lain
 // yang bisa menyamar/bentrok menjadi Administrator.
+// CATATAN KEAMANAN: passwordnya TIDAK ditulis polos di sini lagi (sebelumnya
+// 'udd3209' tertulis apa adanya, siapa pun yang buka source code bisa
+// langsung membacanya). Sekarang yang disimpan cuma HASH-nya (PBKDF2-SHA256,
+// lihat hashPassword() di js/helpers.js) -- password aslinya tidak bisa
+// dibaca ulang dari sini, hanya bisa diverifikasi cocok/tidaknya saat login.
+// Password Administrator TIDAK BERUBAH (masih 'udd3209'), hanya cara
+// penyimpanannya di kode yang diperbaiki.
 const ADMIN_USERNAME = 'ajipranomo';
-const ADMIN_PASSWORD = 'udd3209';
+const ADMIN_SALT = '88b2d1bc726fabca0e5873d5967141f8';
+const ADMIN_PASSWORD_HASH = '7269aa858eb48f3bead43ed4bb6a5d4e7f5c0ff565ab4fb69a91fa72e60bef1d';
 
 // Sesi user yang sedang login saat ini (diisi oleh js/auth.js setelah login
 // berhasil). null berarti belum login -- overlay layar login akan tampil.
