@@ -172,10 +172,37 @@
         <h3>Daftar Lokasi Terdaftar</h3>
         <p class="hint">Cari nama tempat di sini terlebih dahulu sebelum menambah lokasi baru, supaya data tidak terinput dua kali. Klik Edit untuk mengubah data, atau Hapus untuk menghapus lokasi.</p>
 
-        <div class="table-search">
-          <span class="table-search-ico">🔍</span>
-          <input type="text" id="masterTableSearch" placeholder="Cari nama tempat, alamat, kecamatan, wilayah, atau PIC…" autocomplete="off" />
-          <button type="button" class="table-search-clear" id="btnMasterTableSearchClear" title="Bersihkan pencarian">✕</button>
+        <!-- enterkeyhint="search" & inputmode="search" pada kolom di bawah ini
+             membuat tombol "return/enter" di keyboard virtual HP tampil sbg
+             ikon/label pencarian (mis. 🔍), bukan tulisan generik "Enter",
+             "Go", atau "Masuk" yg beda-beda tergantung merk HP -- tapi tetap
+             mengirim event tombol Enter yg sama, jadi listener keydown di
+             js/master-data.js tidak perlu diubah. Tombol "🔍 Cari" di
+             sampingnya jadi cadangan pasti utk HP yg keyboard-nya tidak
+             menyediakan tombol return sama sekali. -->
+        <div class="table-search-row">
+          <div class="table-search">
+            <span class="table-search-ico">🔍</span>
+            <input type="text" id="masterTableSearch" placeholder="Cari nama tempat, alamat, kecamatan, wilayah, atau PIC…" autocomplete="off" enterkeyhint="search" inputmode="search" />
+            <button type="button" class="table-search-clear" id="btnMasterTableSearchClear" title="Bersihkan pencarian">✕</button>
+          </div>
+          <button type="button" class="btn btn-primary btn-search-go" id="btnMasterTableSearchGo">🔍 Cari</button>
+        </div>
+
+        <!-- Chip filter kolom pencarian: default "Semua Kolom" (cari di Nama
+             Tempat + Alamat + Kecamatan + Wilayah + PIC sekaligus, spt
+             sebelumnya). Kalau admin/user memilih chip lain, pencarian
+             dipersempit hanya ke kolom itu saja -- supaya tidak ambigu saat
+             niatnya memang cari nama tempat tapi kata kuncinya kebetulan
+             juga muncul di Alamat/Kecamatan/dst. Lihat juga badge "cocok
+             pada: ..." di tiap baris hasil (dirender di renderMasterTable). -->
+        <div class="master-field-chips" id="masterFieldChips" role="group" aria-label="Filter kolom pencarian">
+          <button type="button" class="field-chip active" data-field="semua">Semua Kolom</button>
+          <button type="button" class="field-chip" data-field="nama">Nama Tempat</button>
+          <button type="button" class="field-chip" data-field="alamat">Alamat</button>
+          <button type="button" class="field-chip" data-field="kecamatan">Kecamatan</button>
+          <button type="button" class="field-chip" data-field="wilayah">Wilayah</button>
+          <button type="button" class="field-chip" data-field="pic">PIC</button>
         </div>
 
         <div class="table-wrap table-wrap-flat">

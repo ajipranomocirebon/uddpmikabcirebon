@@ -268,22 +268,76 @@ function deleteMaster(id){
 }
 
 /* ---------- Pencarian & Pagination: Daftar Lokasi Terdaftar --------
-   Panel kanan tab 1 (Master Data). Pencarian mencocokkan Nama Tempat,
-   Alamat Lengkap, Kecamatan, Wilayah, dan PIC -- kalau cocok muncul di
-   hasil, kalau tidak ada yang cocok tabel menampilkan baris "tidak
-   ditemukan". Pagination membatasi jumlah baris per halaman supaya
-   tabel tetap enak dibaca walau datanya sudah banyak. ------------- */
-const masterTableState = { query: '', page: 1, pageSize: 10 };
+   Panel kanan tab 1 (Master Data). Defaultnya (chip "Semua Kolom") pencarian
+   mencocokkan Nama Tempat, Alamat Lengkap, Kecamatan, Wilayah, dan PIC
+   sekaligus -- kalau cocok muncul di hasil, kalau tidak ada yang cocok
+   tabel menampilkan baris "tidak ditemukan". Admin/user juga bisa
+   mempersempit pencarian ke SATU kolom saja lewat chip filter (mis.
+   "Nama Tempat" saja) supaya tidak ambigu ketika niatnya memang cari nama
+   tempat tapi kata kuncinya kebetulan juga muncul di kolom lain (mis.
+   alamat) -- lihat MASTER_SEARCH_FIELDS & masterTableState.field di bawah.
+   Tiap baris hasil pencarian (mode "Semua Kolom") juga diberi badge kecil
+   "cocok pada: ..." kalau kata kuncinya cocok di kolom SELAIN Nama Tempat,
+   supaya admin/user paham kenapa baris itu muncul walau nama tempatnya
+   sendiri tidak mengandung kata kunci tsb. Pagination membatasi jumlah
+   baris per halaman supaya tabel tetap enak dibaca walau datanya sudah
+   banyak. ------------------------------------------------------------- */
+const masterTableState = { query: '', page: 1, pageSize: 10, field: 'semua' };
 const MASTER_PAGINATION_MIN = 10; // pagination baru aktif kalau total lokasi >= 10
+
+// Kolom yang bisa dicari + cara ambil nilainya dari satu baris data lokasi.
+// "wilayah" digabung dgn zonaWilayah krn keduanya sama-sama informasi
+// wilayah walau zonaWilayah tidak tampil sbg kolom terpisah di tabel.
+const MASTER_SEARCH_FIELDS = {
+  nama:      { label: 'Nama Tempat', get: t => t.nama },
+  alamat:    { label: 'Alamat',      get: t => t.alamat },
+  kecamatan: { label: 'Kecamatan',   get: t => t.kecamatan },
+  wilayah:   { label: 'Wilayah',     get: t => [t.wilayah, t.zonaWilayah].filter(Boolean).join(' ') },
+  pic:       { label: 'PIC',         get: t => t.pic },
+};
 
 function getFilteredMasterList(){
   const q = masterTableState.query.trim();
   if(!q) return state.master;
+  const field = masterTableState.field;
+  if(field !== 'semua' && MASTER_SEARCH_FIELDS[field]){
+    return state.master.filter(t => wordPrefixMatch(MASTER_SEARCH_FIELDS[field].get(t), q));
+  }
   return state.master.filter(t=>{
-    const haystack = [t.nama, t.alamat, t.kecamatan, t.wilayah, t.zonaWilayah, t.pic]
-      .filter(Boolean).join(' ');
+    const haystack = Object.values(MASTER_SEARCH_FIELDS).map(f=>f.get(t)).filter(Boolean).join(' ');
     return wordPrefixMatch(haystack, q);
   });
+}
+
+// Label kolom (selain Nama Tempat) yang cocok dgn kata kunci, utk badge
+// "cocok pada: ..." di tiap baris hasil. Nama Tempat sengaja dikecualikan
+// krn kolom itu sudah kelihatan langsung di baris (tidak perlu dijelaskan).
+function getMasterOtherMatchLabels(t, q){
+  if(!q) return [];
+  return Object.entries(MASTER_SEARCH_FIELDS)
+    .filter(([key])=> key !== 'nama')
+    .filter(([,f])=> wordPrefixMatch(f.get(t), q))
+    .map(([,f])=> f.label);
+}
+
+// Badge cuma relevan waktu mode "Semua Kolom" -- kalau admin/user sudah
+// pilih chip kolom spesifik (mis. "Alamat" saja), tidak ambigu lagi jadi
+// tidak perlu dijelaskan lebih lanjut.
+function masterMatchBadgesHtml(t, q){
+  if(masterTableState.field !== 'semua') return '';
+  const labels = getMasterOtherMatchLabels(t, q);
+  if(labels.length === 0) return '';
+  return `<div class="match-badges">${labels.map(l=>`<span class="match-badge">cocok pada: ${escapeHtml(l)}</span>`).join('')}</div>`;
+}
+
+// Suffix kecil pada pesan "Lokasi tidak ditemukan untuk pencarian '...'"
+// supaya menyebutkan kolom yang sedang aktif dicari, kalau bukan "Semua
+// Kolom" -- mis. "... pada kolom Alamat." -- supaya jelas kenapa hasilnya
+// kosong walau kata kuncinya mungkin ada di kolom lain.
+function masterFieldSuffixText(){
+  const field = masterTableState.field;
+  if(field === 'semua' || !MASTER_SEARCH_FIELDS[field]) return '';
+  return ` pada kolom ${MASTER_SEARCH_FIELDS[field].label}`;
 }
 
 function renderMasterTable(){
@@ -308,7 +362,7 @@ function renderMasterTable(){
   }
 
   if(filteredTotal === 0){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Lokasi tidak ditemukan untuk pencarian "${escapeHtml(masterTableState.query.trim())}".</td></tr>`;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="7">Lokasi tidak ditemukan untuk pencarian "${escapeHtml(masterTableState.query.trim())}"${masterFieldSuffixText()}.</td></tr>`;
     if(paginationActive){
       pagerEl.style.display = 'flex';
       metaEl.innerHTML = `Tidak ada hasil dari total <b>${total}</b> lokasi terdaftar.`;
@@ -327,7 +381,7 @@ function renderMasterTable(){
     tbody.innerHTML = filtered.map(t=>`
       <tr>
         <td class="mono">${t.id}</td>
-        <td><b>${escapeHtml(t.nama)}</b></td>
+        <td><b>${escapeHtml(t.nama)}</b>${masterMatchBadgesHtml(t, masterTableState.query.trim())}</td>
         <td>${escapeHtml(t.alamat || '—')}</td>
         <td>${escapeHtml(t.wilayah)}</td>
         <td>${escapeHtml(t.kecamatan)}</td>
@@ -355,7 +409,7 @@ function renderMasterTable(){
   tbody.innerHTML = pageItems.map(t=>`
     <tr>
       <td class="mono">${t.id}</td>
-      <td><b>${escapeHtml(t.nama)}</b></td>
+      <td><b>${escapeHtml(t.nama)}</b>${masterMatchBadgesHtml(t, masterTableState.query.trim())}</td>
       <td>${escapeHtml(t.alamat || '—')}</td>
       <td>${escapeHtml(t.wilayah)}</td>
       <td>${escapeHtml(t.kecamatan)}</td>
@@ -394,33 +448,46 @@ const masterTableSearchInput = document.getElementById('masterTableSearch');
 const btnMasterTableSearchClear = document.getElementById('btnMasterTableSearchClear');
 
 /* ---------- Modal "data tidak ditemukan" -> tawarkan buka form tambah ---
-   Begitu admin berhenti mengetik (debounce) di kolom pencarian Daftar
-   Lokasi Terdaftar dan hasilnya kosong, tampilkan modal konfirmasi di
-   tengah layar: "Apakah data yang Anda cari tidak ada?". Kalau admin klik
-   "Iya", form Tambah Lokasi Baru dibuka (unlock) dgn nama tempat sudah
-   terisi dari kata kunci pencarian tsb. -------------------------------- */
+   Begitu admin berhenti mengetik (debounce), menekan Enter, atau klik
+   tombol "Cari" di kolom pencarian Daftar Lokasi Terdaftar dan hasilnya
+   kosong, tampilkan modal konfirmasi di tengah layar dengan dua tombol
+   (tanpa ikon "×" tutup di pojok kanan atas -- lihat hideCloseBtn pada
+   askConfirm()): "Buat lokasi baru" membuka (unlock) form Tambah Lokasi
+   Baru dgn nama tempat sudah terisi dari kata kunci pencarian tsb, dan
+   "Batal" menutup modal & kembali ke form pencarian tanpa aksi apa pun. */
 const MASTER_SEARCH_MIN_LEN = 2; // kata kunci terlalu pendek -> jangan buru-buru tanya
 const MASTER_SEARCH_DEBOUNCE_MS = 700; // jeda tunggu setelah admin berhenti mengetik
 let masterSearchDebounceTimer = null;
 let masterLastAskedQuery = null; // query yg sudah pernah ditawarkan, supaya tidak tanya berulang
 
-// forceReask: true kalau dipicu manual (tombol Enter) -- pengecekan
-// langsung jalan tanpa menunggu debounce, dan modal tetap ditampilkan
-// walau query yang sama pernah ditanyakan sebelumnya, karena menekan
-// Enter dianggap permintaan eksplisit dari admin/user untuk mengecek lagi.
+// forceReask: true kalau dipicu manual (tombol Enter atau tombol "Cari")
+// -- pengecekan langsung jalan tanpa menunggu debounce, dan modal tetap
+// ditampilkan walau query yang sama pernah ditanyakan sebelumnya, karena
+// menekan Enter/klik "Cari" dianggap permintaan eksplisit dari admin/user
+// untuk mengecek lagi.
 function checkMasterNoResult(forceReask){
   if(masterFormUnlocked) return; // form sudah aktif -- tidak perlu ditawarkan lagi
   const currentQ = masterTableState.query.trim();
   if(currentQ.length < MASTER_SEARCH_MIN_LEN) return;
-  if(!forceReask && currentQ.toLowerCase() === masterLastAskedQuery) return; // sudah pernah ditawarkan utk query ini
+  // Query + kolom yg sedang aktif digabung jadi satu kunci penanda, supaya
+  // ganti chip kolom pada kata kunci yg sama dianggap pencarian baru (boleh
+  // ditawarkan modal lagi) walau teksnya belum berubah.
+  const askKey = masterTableState.field + '::' + currentQ.toLowerCase();
+  if(!forceReask && askKey === masterLastAskedQuery) return; // sudah pernah ditawarkan utk kombinasi ini
 
   if(getFilteredMasterList().length === 0){
-    masterLastAskedQuery = currentQ.toLowerCase();
+    masterLastAskedQuery = askKey;
+    const field = masterTableState.field;
+    // Nama Tempat cuma di-prefill otomatis kalau memang lagi cari di
+    // "Semua Kolom" atau khusus kolom "Nama Tempat" -- kalau admin/user
+    // sedang mempersempit pencarian ke kolom lain (mis. PIC), kata kunci
+    // itu belum tentu cocok jadi Nama Tempat, jadi dibiarkan kosong.
+    const prefillNama = (field === 'semua' || field === 'nama') ? currentQ : '';
     askConfirm(
       'Data tidak ditemukan',
-      `Apakah data yang Anda cari tidak ketemu? Tidak ditemukan lokasi untuk kata kunci "${currentQ}" di Daftar Lokasi Terdaftar.`,
-      ()=> unlockMasterFormForNewEntry(currentQ),
-      'Iya', 'Tidak'
+      `Apakah data yang Anda cari tidak ketemu? Tidak ditemukan lokasi untuk kata kunci "${currentQ}"${masterFieldSuffixText()} di Daftar Lokasi Terdaftar.`,
+      ()=> unlockMasterFormForNewEntry(prefillNama),
+      'Buat lokasi baru', 'Batal', true
     );
   }
 }
@@ -454,6 +521,38 @@ masterTableSearchInput.addEventListener('keydown', (e)=>{
   if(e.key !== 'Enter') return;
   e.preventDefault();
   clearTimeout(masterSearchDebounceTimer);
+  checkMasterNoResult(true);
+});
+
+// Tombol "Cari" -> perilakunya sama persis dgn menekan Enter: hasil
+// tabel sebenarnya sudah ter-update live setiap admin/user mengetik
+// (lihat listener 'input' di atas), jadi tombol ini hanya memastikan
+// pengecekan "data tidak ditemukan" langsung jalan saat itu juga tanpa
+// menunggu jeda debounce, walau query yg sama pernah ditanyakan sebelumnya.
+document.getElementById('btnMasterTableSearchGo').addEventListener('click', ()=>{
+  clearTimeout(masterSearchDebounceTimer);
+  checkMasterNoResult(true);
+  masterTableSearchInput.focus();
+});
+
+// Chip filter kolom pencarian ("Semua Kolom" / "Nama Tempat" / "Alamat" /
+// "Kecamatan" / "Wilayah" / "PIC"): klik salah satu chip mempersempit (atau
+// mengembalikan ke "Semua Kolom") ruang lingkup pencarian, lalu langsung
+// jalankan ulang pencarian & pengecekan "data tidak ditemukan" saat itu
+// juga (spt menekan tombol "Cari") krn memilih chip adalah aksi eksplisit.
+const masterFieldChipsEl = document.getElementById('masterFieldChips');
+masterFieldChipsEl.addEventListener('click', (e)=>{
+  const chip = e.target.closest('.field-chip');
+  if(!chip) return;
+  const field = chip.dataset.field;
+  if(field === masterTableState.field) return;
+  masterTableState.field = field;
+  masterTableState.page = 1;
+  masterFieldChipsEl.querySelectorAll('.field-chip').forEach(c=>{
+    c.classList.toggle('active', c === chip);
+  });
+  clearTimeout(masterSearchDebounceTimer);
+  renderMasterTable();
   checkMasterNoResult(true);
 });
 

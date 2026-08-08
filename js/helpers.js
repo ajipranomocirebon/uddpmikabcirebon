@@ -136,13 +136,18 @@ let confirmCallback = null;
 // utk pop-up konfirmasi lain spt "Kondisi Aman" di kegiatan.js yang
 // tombolnya perlu berbunyi "OK" (bukan "Ya, Hapus") krn bukan aksi hapus,
 // dan "Iya" di master-data.js utk konfirmasi "data tidak ditemukan".
-// cancelLabel opsional juga (default "Batal") -- mis. dipakai jadi "Tidak"
+// cancelLabel opsional juga (default "Batal") -- mis. dipakai jadi "Batal"
 // pd konfirmasi "data tidak ditemukan" di master-data.js.
-function askConfirm(title, text, cb, okLabel, cancelLabel){
+// hideCloseBtn opsional (default false) -- kalau true, ikon "×" di pojok
+// kanan atas modal disembunyikan sehingga admin/user hanya bisa menutup
+// modal lewat salah satu dari dua tombol aksi (mis. "Buat lokasi baru" /
+// "Batal" pada konfirmasi "data tidak ditemukan" di master-data.js).
+function askConfirm(title, text, cb, okLabel, cancelLabel, hideCloseBtn){
   document.getElementById('modalTitle').textContent = title;
   document.getElementById('modalText').textContent = text;
   document.getElementById('modalOk').textContent = okLabel || 'Ya, Hapus';
   document.getElementById('modalCancel').textContent = cancelLabel || 'Batal';
+  document.getElementById('modalCloseBtn').style.display = hideCloseBtn ? 'none' : '';
   document.getElementById('modalConfirm').classList.add('show');
   confirmCallback = cb;
 }
