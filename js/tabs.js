@@ -20,6 +20,11 @@ function switchTab(name){
     renderMap();
     const infoEl = document.getElementById('laporanMapInfo');
     if(infoEl) infoEl.textContent = '📍 Menampilkan semua lokasi. Pilih periode/wilayah lalu klik "Tampilkan Laporan" untuk memfilter peta.';
+    // Render ulang kartu ringkasan+tabel laporan setiap kali masuk tab ini --
+    // supaya tampilan langsung menyesuaikan hak akses user yang sedang login
+    // (mis. User 2 langsung melihat versi ringkas tanpa perlu klik tombol
+    // "Tampilkan Laporan" dulu).
+    if(typeof renderLaporan==='function') renderLaporan();
   }
 }
 document.querySelectorAll('.tab-btn').forEach(btn=>{

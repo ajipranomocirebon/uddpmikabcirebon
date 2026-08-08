@@ -2,6 +2,19 @@
 
 # Perubahan PetaDonor — Revisi Penyimpanan & Pencarian Kategori
 
+## 29. User 2 — Tab 3 (Laporan Epidemiologi) ditampilkan versi ringkas
+- Khusus untuk akun dengan Level Akses "User 2" (yang datanya diatur lewat
+  Tab 6 Administrator): kartu ringkasan jumlah reaktif per parameter
+  (HBSAG, HCV, HIV, SIFILIS) di atas tabel sekarang **disembunyikan total**.
+- Tabel detail di bawahnya juga disederhanakan -- hanya menampilkan kolom
+  **Tanggal, Tempat, Wilayah, Kecamatan, Zona**. Kolom No. Kantong, Jenis
+  Donor, Metode Pengujian, dan Parameter Reaktif (yang berisi hasil
+  skrining per-donor, lebih sensitif) ikut disembunyikan utk User 2.
+- Administrator dan User 1 tetap melihat laporan lengkap seperti sebelumnya
+  (kartu ringkasan + 8 kolom tabel, termasuk parameter reaktif per kantong).
+- Tampilan ini otomatis menyesuaikan begitu Tab 3 dibuka (tidak perlu klik
+  "Tampilkan Laporan" dulu) -- lihat `isUser2()` di `js/laporan.js`.
+
 ## 28. Seluruh pencarian data sendiri diubah jadi "awalan per-kata" (word-prefix)
 - Sebelumnya pencarian (Nama Tempat Tab 1 & 2, Daftar Lokasi Terdaftar,
   Riwayat Kegiatan, pencarian lokasi di peta, dropdown Kecamatan/Wilayah/

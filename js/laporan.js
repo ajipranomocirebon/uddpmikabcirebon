@@ -1,6 +1,18 @@
 /* ===================================================================
    LAPORAN
+   ------------------------------------------------------------------
+   - User 2: hanya boleh melihat versi RINGKAS dari laporan ini --
+     kartu ringkasan per-parameter (HBSAG/HCV/HIV/SIFILIS) disembunyikan
+     total, dan tabel detail hanya menampilkan kolom Tanggal, Tempat,
+     Wilayah, Kecamatan, Zona (kolom No. Kantong/Jenis Donor/Metode
+     Pengujian/Parameter Reaktif ikut disembunyikan karena berisi hasil
+     skrining per-donor yang sifatnya lebih sensitif).
+   - Administrator & User 1: tetap melihat laporan lengkap seperti biasa.
 =================================================================== */
+function isUser2(){
+  return !!(currentUser && currentUser.role==='user' && currentUser.level==='user2');
+}
+
 function renderLaporan(){
   const dari = document.getElementById('filterDari').value;
   const sampai = document.getElementById('filterSampai').value;
@@ -36,7 +48,7 @@ function renderLaporan(){
       // pada rekap per parameter (satu kantong bisa menyumbang ke lebih
       // dari satu parameter sekaligus).
       parameters.forEach(p=>{ counts[p] = (counts[p]||0) + 1; });
-      detail.push({tanggal:k.tanggal, tempat:t?t.nama:'—', wilayah:t?t.wilayah:'—', nomorKantong, jenisDonor, metodePengujian, parameters, zona:k.zona});
+      detail.push({tanggal:k.tanggal, tempat:t?t.nama:'—', wilayah:t?t.wilayah:'—', kecamatan:t?t.kecamatan:'—', nomorKantong, jenisDonor, metodePengujian, parameters, zona:k.zona});
     });
   });
 
@@ -51,21 +63,51 @@ function renderLaporan(){
       : '📍 Tidak ada lokasi dengan kegiatan pada periode/filter ini untuk ditampilkan di peta.';
   }
 
-  const maxCount = Math.max(1, ...Object.values(counts));
-  document.getElementById('summaryGrid').innerHTML = jenisList.map(j=>`
-    <div class="sum-card">
-      <span>${j}</span>
-      <b>${counts[j]||0}</b>
-      <div class="bar-track"><div class="bar-fill" style="width:${(counts[j]||0)/maxCount*100}%"></div></div>
-    </div>
-  `).join('');
+  const restricted = isUser2();
+
+  // Kartu ringkasan per-parameter (HBSAG/HCV/HIV/SIFILIS): disembunyikan
+  // total untuk User 2, ditampilkan seperti biasa untuk Administrator/User 1.
+  const summaryEl = document.getElementById('summaryGrid');
+  if(restricted){
+    summaryEl.style.display = 'none';
+    summaryEl.innerHTML = '';
+  }else{
+    summaryEl.style.display = '';
+    const maxCount = Math.max(1, ...Object.values(counts));
+    summaryEl.innerHTML = jenisList.map(j=>`
+      <div class="sum-card">
+        <span>${j}</span>
+        <b>${counts[j]||0}</b>
+        <div class="bar-track"><div class="bar-fill" style="width:${(counts[j]||0)/maxCount*100}%"></div></div>
+      </div>
+    `).join('');
+  }
+
+  // Header tabel: versi ringkas (5 kolom) utk User 2, versi lengkap
+  // (8 kolom, termasuk No. Kantong/Jenis Donor/Metode/Parameter Reaktif)
+  // utk Administrator & User 1.
+  const theadRow = document.getElementById('laporanTableHead');
+  const colCount = restricted ? 5 : 8;
+  if(theadRow){
+    theadRow.innerHTML = restricted
+      ? `<th>Tanggal</th><th>Tempat</th><th>Wilayah</th><th>Kecamatan</th><th>Zona</th>`
+      : `<th>Tanggal</th><th>Tempat</th><th>Wilayah</th><th>No. Kantong</th><th>Jenis Donor</th><th>Metode Pengujian</th><th>Parameter Reaktif</th><th>Zona</th>`;
+  }
 
   const tbody = document.getElementById('tblLaporan');
   if(detail.length===0){
-    tbody.innerHTML = `<tr class="empty-row"><td colspan="8">Tidak ada data reaktif pada periode/filter ini.</td></tr>`; return;
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="${colCount}">Tidak ada data reaktif pada periode/filter ini.</td></tr>`; return;
   }
   detail.sort((a,b)=> a.tanggal < b.tanggal ? 1 : -1);
-  tbody.innerHTML = detail.map(d=>`
+  tbody.innerHTML = detail.map(d=> restricted ? `
+    <tr>
+      <td class="mono">${fmtDate(d.tanggal)}</td>
+      <td>${escapeHtml(d.tempat)}</td>
+      <td>${escapeHtml(d.wilayah)}</td>
+      <td>${escapeHtml(d.kecamatan||'—')}</td>
+      <td>${zonaBadge(d.zona)}</td>
+    </tr>
+  ` : `
     <tr>
       <td class="mono">${fmtDate(d.tanggal)}</td>
       <td>${escapeHtml(d.tempat)}</td>
